@@ -1,6 +1,6 @@
-use bitcoin::hashes::Hash;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::hashes::sha256::Hash as Sha256;
+use bitcoin::hashes::Hash;
 
 use tonic_openssl_lnd::LndRouterClient;
 

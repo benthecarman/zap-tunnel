@@ -1,13 +1,20 @@
 mod config;
+mod models;
 mod subscribers;
 
 use axum::response::Html;
 use axum::routing::get;
 use axum::{Extension, Router};
 use clap::Parser;
+use diesel::connection::SimpleConnection;
+use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::SqliteConnection;
+use diesel_migrations::MigrationHarness;
 use dioxus::prelude::*;
+use std::time::Duration;
 
 use crate::config::*;
+use crate::models::MIGRATIONS;
 use crate::subscribers::*;
 use tokio::task::spawn;
 use tonic_openssl_lnd::lnrpc::{GetInfoRequest, GetInfoResponse};
@@ -46,15 +53,30 @@ async fn main() {
             .clone(),
     };
 
+    // DB management
+    let manager = ConnectionManager::<SqliteConnection>::new(config.db_path);
+    let pool = Pool::builder()
+        .max_size(16)
+        .connection_customizer(Box::new(ConnectionOptions {
+            enable_wal: true,
+            enable_foreign_keys: true,
+            busy_timeout: Some(Duration::from_secs(30)),
+        }))
+        .test_on_check_out(true)
+        .build(manager)
+        .expect("Could not build connection pool");
+    let connection = &mut pool.get().unwrap();
+    connection
+        .run_pending_migrations(MIGRATIONS)
+        .expect("migrations could not run");
+
     let client_router = client.router().clone();
 
     // HTLC event stream
     println!("Starting htlc event subscription");
     let client_router_htlc_event = client_router.clone();
 
-    spawn(async move {
-        start_htlc_event_subscription(client_router_htlc_event).await
-    });
+    spawn(async move { start_htlc_event_subscription(client_router_htlc_event).await });
 
     // HTLC interceptor
     println!("Starting HTLC interceptor");
@@ -66,9 +88,7 @@ async fn main() {
 
     println!("Webserver running on http://{}", addr);
 
-    let router = Router::new()
-        .route("/", get(index))
-        .layer(Extension(state));
+    let router = Router::new().route("/", get(index)).layer(Extension(state));
 
     let server = axum::Server::bind(&addr).serve(router.into_make_service());
 
@@ -91,4 +111,31 @@ async fn index(Extension(state): Extension<State>) -> Html<String> {
             h1 { "Hello world!" }
             p {"{connect}"}
     }))
+}
+
+#[derive(Debug)]
+pub struct ConnectionOptions {
+    pub enable_wal: bool,
+    pub enable_foreign_keys: bool,
+    pub busy_timeout: Option<Duration>,
+}
+
+impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
+    for ConnectionOptions
+{
+    fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), diesel::r2d2::Error> {
+        (|| {
+            if self.enable_wal {
+                conn.batch_execute("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;")?;
+            }
+            if self.enable_foreign_keys {
+                conn.batch_execute("PRAGMA foreign_keys = ON;")?;
+            }
+            if let Some(d) = self.busy_timeout {
+                conn.batch_execute(&format!("PRAGMA busy_timeout = {};", d.as_millis()))?;
+            }
+            Ok(())
+        })()
+        .map_err(diesel::r2d2::Error::QueryError)
+    }
 }
