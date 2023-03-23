@@ -12,6 +12,7 @@ use super::schema::invoices;
 pub struct Invoice {
     payment_hash: String,
     invoice: String,
+    // todo add expires_at
     paid: i32,
     username: String,
 }
@@ -40,6 +41,10 @@ impl Invoice {
 
     pub fn username(&self) -> String {
         self.username.clone()
+    }
+
+    pub fn set_paid(&mut self) {
+        self.paid = 1;
     }
 }
 

@@ -4,6 +4,9 @@ use clap::Parser;
 #[command(version, author, about)]
 /// A tool for proxying LNURL pay addresses.
 pub struct Config {
+    #[clap(long)]
+    /// Nostr Private Key, used to sign zap requests, encoded as hex or bech32
+    pub nsec: String,
     #[clap(default_value_t = String::from("127.0.0.1"), long)]
     /// Host of the GRPC server for lnd
     pub lnd_host: String,

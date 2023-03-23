@@ -13,7 +13,7 @@ use super::schema::zaps;
 pub struct Zap {
     payment_hash: String,
     invoice: String,
-    request: String,
+    pub request: String,
     note_id: Option<String>,
 }
 

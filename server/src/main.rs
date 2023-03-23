@@ -1,7 +1,7 @@
-mod config;
-mod models;
-mod subscribers;
+use std::time::Duration;
 
+use ::nostr::prelude::FromSkStr;
+use ::nostr::Keys;
 use axum::response::Html;
 use axum::routing::get;
 use axum::{Extension, Router};
@@ -11,13 +11,17 @@ use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::SqliteConnection;
 use diesel_migrations::MigrationHarness;
 use dioxus::prelude::*;
-use std::time::Duration;
+use tokio::task::spawn;
+use tonic_openssl_lnd::lnrpc::{GetInfoRequest, GetInfoResponse};
 
 use crate::config::*;
 use crate::models::MIGRATIONS;
-use crate::subscribers::*;
-use tokio::task::spawn;
-use tonic_openssl_lnd::lnrpc::{GetInfoRequest, GetInfoResponse};
+use crate::subscriber::*;
+
+mod config;
+mod models;
+mod nostr;
+mod subscriber;
 
 #[derive(Clone)]
 struct State {
@@ -27,6 +31,8 @@ struct State {
 #[tokio::main]
 async fn main() {
     let config: Config = Config::parse();
+
+    let nostr_key = Keys::from_sk_str(&config.nsec).expect("Failed to parse nsec key");
 
     let macaroon_file = config
         .macaroon_file
@@ -55,7 +61,7 @@ async fn main() {
 
     // DB management
     let manager = ConnectionManager::<SqliteConnection>::new(config.db_path);
-    let pool = Pool::builder()
+    let db_pool = Pool::builder()
         .max_size(16)
         .connection_customizer(Box::new(ConnectionOptions {
             enable_wal: true,
@@ -65,22 +71,23 @@ async fn main() {
         .test_on_check_out(true)
         .build(manager)
         .expect("Could not build connection pool");
-    let connection = &mut pool.get().unwrap();
+    let connection = &mut db_pool.get().unwrap();
     connection
         .run_pending_migrations(MIGRATIONS)
         .expect("migrations could not run");
 
-    let client_router = client.router().clone();
+    let lightning_client = client.lightning().clone();
+    let router_client = client.router().clone();
+    let invoice_client = client.invoices().clone();
 
-    // HTLC event stream
-    println!("Starting htlc event subscription");
-    let client_router_htlc_event = client_router.clone();
-
-    spawn(async move { start_htlc_event_subscription(client_router_htlc_event).await });
-
-    // HTLC interceptor
-    println!("Starting HTLC interceptor");
-    spawn(async move { start_htlc_interceptor(client_router).await });
+    // Invoice event stream
+    spawn(start_invoice_subscription(
+        lightning_client,
+        router_client,
+        invoice_client,
+        nostr_key,
+        db_pool,
+    ));
 
     let addr: std::net::SocketAddr = format!("{}:{}", config.bind, config.port)
         .parse()
