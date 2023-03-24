@@ -12,16 +12,22 @@ use super::schema::invoices;
 pub struct Invoice {
     payment_hash: String,
     invoice: String,
-    // todo add expires_at
+    pub expires_at: i64,
     paid: i32,
     username: String,
 }
 
 impl Invoice {
     pub fn new(invoice: LnInvoice, username: String) -> Self {
+        let expires_at: i64 = invoice
+            .duration_since_epoch()
+            .checked_add(invoice.expiry_time())
+            .map_or(0, |t| t.as_secs() as i64);
+
         Self {
             payment_hash: invoice.payment_hash().to_hex(),
             invoice: invoice.to_string(),
+            expires_at,
             paid: 0,
             username,
         }
@@ -53,6 +59,7 @@ impl Invoice {
 pub struct NewInvoice<'a> {
     pub payment_hash: &'a str,
     pub invoice: &'a str,
+    pub expires_at: i64,
     pub paid: i32,
     pub username: &'a str,
 }

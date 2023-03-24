@@ -98,9 +98,13 @@ mod test {
         assert_eq!(size, 1);
 
         let inv: LnInvoice = LnInvoice::from_str(INVOICE_STR).unwrap();
+
+        let expiry: i64 = 1679625552;
+
         let new_invoice = NewInvoice {
             payment_hash: &inv.payment_hash().to_hex(),
             invoice: INVOICE_STR,
+            expires_at: expiry,
             paid: 0,
             username: "test_user",
         };
@@ -121,6 +125,7 @@ mod test {
         assert_eq!(invoice_db.payment_hash(), inv.payment_hash().clone());
         assert_eq!(invoice_db.invoice().to_string(), INVOICE_STR);
         assert_eq!(invoice_db.is_paid(), false);
+        assert_eq!(invoice_db.expires_at, expiry);
         assert_eq!(invoice_db.username(), "test_user");
 
         teardown_database(&db_name);

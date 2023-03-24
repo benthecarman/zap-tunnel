@@ -4,6 +4,7 @@ diesel::table! {
     invoices (payment_hash) {
         payment_hash -> Text,
         invoice -> Text,
+        expires_at -> BigInt,
         paid -> Integer,
         username -> Text,
     }

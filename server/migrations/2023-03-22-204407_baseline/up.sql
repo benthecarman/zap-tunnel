@@ -8,6 +8,7 @@ CREATE TABLE invoices
 (
     payment_hash TEXT PRIMARY KEY NOT NULL,
     invoice      TEXT UNIQUE      NOT NULL,
+    expires_at   BIGINT           NOT NULL,
     paid         INTEGER          NOT NULL,
     username     TEXT             NOT NULL REFERENCES users (username)
 );
