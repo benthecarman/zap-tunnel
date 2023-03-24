@@ -1,16 +1,27 @@
-mod config;
-mod subscribers;
+use std::time::Duration;
 
+use ::nostr::prelude::FromSkStr;
+use ::nostr::Keys;
 use axum::response::Html;
 use axum::routing::get;
 use axum::{Extension, Router};
 use clap::Parser;
+use diesel::connection::SimpleConnection;
+use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::SqliteConnection;
+use diesel_migrations::MigrationHarness;
 use dioxus::prelude::*;
-
-use crate::config::*;
-use crate::subscribers::*;
 use tokio::task::spawn;
 use tonic_openssl_lnd::lnrpc::{GetInfoRequest, GetInfoResponse};
+
+use crate::config::*;
+use crate::models::MIGRATIONS;
+use crate::subscriber::*;
+
+mod config;
+mod models;
+mod nostr;
+mod subscriber;
 
 #[derive(Clone)]
 struct State {
@@ -20,6 +31,8 @@ struct State {
 #[tokio::main]
 async fn main() {
     let config: Config = Config::parse();
+
+    let nostr_key = Keys::from_sk_str(&config.nsec).expect("Failed to parse nsec key");
 
     let macaroon_file = config
         .macaroon_file
@@ -46,19 +59,35 @@ async fn main() {
             .clone(),
     };
 
-    let client_router = client.router().clone();
+    // DB management
+    let manager = ConnectionManager::<SqliteConnection>::new(config.db_path);
+    let db_pool = Pool::builder()
+        .max_size(16)
+        .connection_customizer(Box::new(ConnectionOptions {
+            enable_wal: true,
+            enable_foreign_keys: true,
+            busy_timeout: Some(Duration::from_secs(30)),
+        }))
+        .test_on_check_out(true)
+        .build(manager)
+        .expect("Could not build connection pool");
+    let connection = &mut db_pool.get().unwrap();
+    connection
+        .run_pending_migrations(MIGRATIONS)
+        .expect("migrations could not run");
 
-    // HTLC event stream
-    println!("Starting htlc event subscription");
-    let client_router_htlc_event = client_router.clone();
+    let lightning_client = client.lightning().clone();
+    let router_client = client.router().clone();
+    let invoice_client = client.invoices().clone();
 
-    spawn(async move {
-        start_htlc_event_subscription(client_router_htlc_event).await
-    });
-
-    // HTLC interceptor
-    println!("Starting HTLC interceptor");
-    spawn(async move { start_htlc_interceptor(client_router).await });
+    // Invoice event stream
+    spawn(start_invoice_subscription(
+        lightning_client,
+        router_client,
+        invoice_client,
+        nostr_key,
+        db_pool,
+    ));
 
     let addr: std::net::SocketAddr = format!("{}:{}", config.bind, config.port)
         .parse()
@@ -66,9 +95,7 @@ async fn main() {
 
     println!("Webserver running on http://{}", addr);
 
-    let router = Router::new()
-        .route("/", get(index))
-        .layer(Extension(state));
+    let router = Router::new().route("/", get(index)).layer(Extension(state));
 
     let server = axum::Server::bind(&addr).serve(router.into_make_service());
 
@@ -91,4 +118,31 @@ async fn index(Extension(state): Extension<State>) -> Html<String> {
             h1 { "Hello world!" }
             p {"{connect}"}
     }))
+}
+
+#[derive(Debug)]
+pub struct ConnectionOptions {
+    pub enable_wal: bool,
+    pub enable_foreign_keys: bool,
+    pub busy_timeout: Option<Duration>,
+}
+
+impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
+    for ConnectionOptions
+{
+    fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), diesel::r2d2::Error> {
+        (|| {
+            if self.enable_wal {
+                conn.batch_execute("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;")?;
+            }
+            if self.enable_foreign_keys {
+                conn.batch_execute("PRAGMA foreign_keys = ON;")?;
+            }
+            if let Some(d) = self.busy_timeout {
+                conn.batch_execute(&format!("PRAGMA busy_timeout = {};", d.as_millis()))?;
+            }
+            Ok(())
+        })()
+        .map_err(diesel::r2d2::Error::QueryError)
+    }
 }
