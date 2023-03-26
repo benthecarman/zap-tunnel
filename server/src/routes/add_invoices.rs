@@ -42,7 +42,12 @@ pub async fn add_invoices(
     Extension(state): Extension<State>,
     Json(payload): Json<AddInvoices>,
 ) -> Result<Json<usize>, (StatusCode, String)> {
-    let mut connection = state.db_pool.get().unwrap();
+    let mut connection = state.db_pool.get().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            String::from("Failed to get database connection"),
+        )
+    })?;
 
     match add_invoices_impl(payload, &mut connection) {
         Ok(res) => Ok(Json(res)),

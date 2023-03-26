@@ -17,13 +17,12 @@ mod config;
 const LUD_13_STRING: &str = "DO NOT EVER SIGN THIS TEXT WITH YOUR PRIVATE KEYS! IT IS ONLY USED FOR DERIVATION OF LNURL-AUTH HASHING-KEY, DISCLOSING ITS SIGNATURE WILL COMPROMISE YOUR LNURL-AUTH IDENTITY AND MAY LEAD TO LOSS OF FUNDS!";
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     let config: Config = Config::parse();
 
     let proxy_url = config.proxy_url.clone();
 
-    let client =
-        BlockingClient::from_builder(Builder::new(&String::from(proxy_url.clone()))).unwrap();
+    let client = BlockingClient::from_builder(Builder::new(&String::from(proxy_url.clone())))?;
 
     let macaroon_file = config
         .macaroon_file
@@ -52,13 +51,13 @@ async fn main() {
     let hashing_key = sha256::Hash::hash(&Vec::<u8>::from(sig.signature));
 
     let mut engine = HmacEngine::<sha256::Hash>::new(&hashing_key);
-    engine.input(proxy_url.host().unwrap().to_string().as_bytes());
+    let host = proxy_url.host().expect("failed to get host");
+    engine.input(host.to_string().as_bytes());
     let bytes = Hmac::<sha256::Hash>::from_engine(engine).into_inner();
-    let key = SecretKey::from_slice(&bytes).unwrap();
+    let key = SecretKey::from_slice(&bytes)?;
 
     let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
+        .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
 
     let context = Secp256k1::new();
@@ -86,14 +85,15 @@ async fn main() {
             .lightning()
             .clone()
             .add_invoice(inv)
-            .await
-            .unwrap()
+            .await?
             .into_inner();
 
-        let ln_invoice = LnInvoice::from_str(&invoice.payment_request).unwrap();
+        let ln_invoice = LnInvoice::from_str(&invoice.payment_request)?;
 
-        let num = client.add_invoices(&context, &key, &[ln_invoice]).unwrap();
+        let num = client.add_invoices(&context, &key, &[ln_invoice])?;
 
         println!("Added {} invoices", num);
     }
+
+    Ok(())
 }

@@ -81,8 +81,7 @@ impl CheckUser {
         signature: &Signature,
     ) -> anyhow::Result<()> {
         let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
+            .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs();
 
         if now - time > 60 {

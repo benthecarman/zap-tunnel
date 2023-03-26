@@ -25,7 +25,7 @@ impl BlockingClient {
         }
 
         if let Some(proxy) = &builder.proxy {
-            agent_builder = agent_builder.proxy(Proxy::new(proxy).unwrap());
+            agent_builder = agent_builder.proxy(Proxy::new(proxy).expect("Failed to create proxy"));
         }
 
         Ok(Self::from_agent(builder.base_url, agent_builder.build()))
@@ -44,8 +44,10 @@ impl BlockingClient {
     ) -> Result<CreateUserResponse, Error> {
         let pubkey = PublicKey::from_secret_key(context, private_key);
 
-        let signature =
-            context.sign_ecdsa_low_r(&CreateUser::message_hash(username).unwrap(), private_key);
+        let signature = context.sign_ecdsa_low_r(
+            &CreateUser::message_hash(username).expect("Failed to create hash"),
+            private_key,
+        );
 
         let payload = CreateUser {
             username: String::from(username),
@@ -73,8 +75,10 @@ impl BlockingClient {
     ) -> Result<CheckUser, Error> {
         let pubkey = PublicKey::from_secret_key(context, private_key);
 
-        let signature =
-            context.sign_ecdsa_low_r(&CheckUser::message_hash(current_time).unwrap(), private_key);
+        let signature = context.sign_ecdsa_low_r(
+            &CheckUser::message_hash(current_time).expect("Failed to create hash"),
+            private_key,
+        );
 
         let resp = self
             .agent
@@ -99,8 +103,10 @@ impl BlockingClient {
     ) -> Result<usize, Error> {
         let pubkey = PublicKey::from_secret_key(context, private_key);
 
-        let signature =
-            context.sign_ecdsa_low_r(&AddInvoices::message_hash(invoices).unwrap(), private_key);
+        let signature = context.sign_ecdsa_low_r(
+            &AddInvoices::message_hash(invoices).expect("Failed to create hash"),
+            private_key,
+        );
 
         let payload = AddInvoices {
             pubkey: pubkey.to_string(),
