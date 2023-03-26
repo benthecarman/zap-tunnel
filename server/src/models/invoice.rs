@@ -97,6 +97,7 @@ impl Invoice {
         Ok(invoices::table
             .filter(invoices::username.eq(username))
             .filter(invoices::paid.eq(0))
+            .filter(invoices::used.eq(0))
             .filter(invoices::expires_at.gt(now))
             .count()
             .execute(conn)?)
