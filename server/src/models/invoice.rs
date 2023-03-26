@@ -94,12 +94,18 @@ impl Invoice {
             .unwrap()
             .as_secs() as i64;
 
-        Ok(invoices::table
-            .filter(invoices::username.eq(username))
-            .filter(invoices::paid.eq(0))
-            .filter(invoices::used.eq(0))
-            .filter(invoices::expires_at.gt(now))
-            .count()
-            .execute(conn)?)
+        let count: i64 = invoices::table
+            .select(diesel::dsl::count_star())
+            .filter(
+                invoices::username
+                    .eq(username)
+                    .and(invoices::paid.eq(0))
+                    .and(invoices::used.eq(0))
+                    .and(invoices::expires_at.gt(now)),
+            )
+            .first(conn)
+            .unwrap();
+
+        Ok(count as usize)
     }
 }

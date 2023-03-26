@@ -26,6 +26,8 @@ pub(crate) fn create_user_impl(
 
     debug_assert!(num_created == 1);
 
+    println!("New user created! {:?}", new_user);
+
     Ok(new_user)
 }
 

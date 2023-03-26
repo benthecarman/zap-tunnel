@@ -33,6 +33,8 @@ pub(crate) fn add_invoices_impl(
         .values(&invoices)
         .execute(connection)?;
 
+    println!("Added {} invoices for user {}", num_inserted, username);
+
     Ok(num_inserted)
 }
 
