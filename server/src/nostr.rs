@@ -13,6 +13,7 @@ use lightning::ln::PaymentSecret;
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder, InvoiceDescription};
 use nostr::key::SecretKey;
 use nostr::prelude::TagKind::Custom;
+use nostr::prelude::ToBech32;
 use nostr::Tag::Generic;
 use nostr::{EventBuilder, Keys, Kind};
 use nostr_sdk::Client;
@@ -116,7 +117,10 @@ pub async fn handle_zap(
 
         let event_id = client.send_event(event).await?;
 
-        println!("Broadcasted event id: {}!", event_id);
+        println!(
+            "Broadcasted event id: {}!",
+            event_id.to_bech32().expect("bech32")
+        );
 
         // update zap db
         diesel::update(dsl::zaps.find(invoice_hash.to_hex()))
