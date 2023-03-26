@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use ::nostr::prelude::FromSkStr;
 use ::nostr::Keys;
-use axum::response::Html;
 use axum::routing::{get, post};
 use axum::{Extension, Router};
 use clap::Parser;
@@ -10,18 +9,18 @@ use diesel::connection::SimpleConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::SqliteConnection;
 use diesel_migrations::MigrationHarness;
-use dioxus::prelude::*;
 use tokio::task::spawn;
 use tonic_openssl_lnd::lnrpc::{GetInfoRequest, GetInfoResponse};
 
 use crate::config::*;
 use crate::models::MIGRATIONS;
+use crate::routes::index;
 use crate::subscriber::*;
 
 mod config;
 mod models;
 mod nostr;
-mod router;
+mod routes;
 mod subscriber;
 
 #[derive(Clone)]
@@ -100,7 +99,7 @@ async fn main() {
 
     let server_router = Router::new()
         .route("/", get(index))
-        .route("/create", post(router::create_user))
+        .route("/create", post(routes::create_user))
         .layer(Extension(state));
 
     let server = axum::Server::bind(&addr).serve(server_router.into_make_service());
@@ -115,15 +114,6 @@ async fn main() {
     if let Err(e) = graceful.await {
         eprintln!("shutdown error: {}", e);
     }
-}
-
-async fn index(Extension(state): Extension<State>) -> Html<String> {
-    let connect = format!("Connect with me here: {}", state.connection_string);
-
-    Html(dioxus::ssr::render_lazy(rsx! {
-            h1 { "Hello world!" }
-            p {"{connect}"}
-    }))
 }
 
 #[derive(Debug)]
