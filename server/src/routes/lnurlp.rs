@@ -136,13 +136,14 @@ pub async fn get_lnurl_invoice(
             String::from("{\"status\":\"ERROR\",\"reason\":\"Missing amount parameter.\"}"),
         )),
         Some(amount_msats) => {
-            let zap_request =
-                match params.get("nostr") {
-                    Some(event_str) => Some(Event::from_json(event_str).map_err(|_| {
-                        (StatusCode::NOT_FOUND, String::from("Invalid zap request"))
-                    })?),
-                    None => None,
-                };
+            let zap_request = params.get("nostr").map_or_else(
+                || Ok(None),
+                |event_str| {
+                    Event::from_json(event_str)
+                        .map_err(|_| (StatusCode::NOT_FOUND, String::from("Invalid zap request")))
+                        .map(Some)
+                },
+            )?;
 
             let mut connection = state.db_pool.get().map_err(|_| {
                 (
