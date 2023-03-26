@@ -96,7 +96,7 @@ impl BlockingClient {
         context: &Secp256k1<C>,
         private_key: &SecretKey,
         invoices: &[Invoice],
-    ) -> Result<CreateUserResponse, Error> {
+    ) -> Result<usize, Error> {
         let pubkey = PublicKey::from_secret_key(context, private_key);
 
         let signature =
