@@ -78,13 +78,7 @@ pub async fn start_invoice_subscription(
                 )
                 .await
             }
-            Some(InvoiceState::Settled) => {
-                println!("got settled invoice: {:?}", ln_invoice.payment_request)
-            }
-            Some(InvoiceState::Canceled) => {
-                println!("got canceled invoice: {:?}", ln_invoice.payment_request)
-            }
-            None => println!("got unknown invoice: {:?}", ln_invoice.payment_request),
+            None | Some(InvoiceState::Canceled) | Some(InvoiceState::Settled) => {}
         }
     }
 }
