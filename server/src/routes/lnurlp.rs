@@ -88,8 +88,8 @@ pub(crate) async fn get_lnurl_invoice_impl(
     };
 
     let invoice_db = match Invoice::get_next_invoice(username, connection) {
-        None => return Ok(None),
-        Some(db) => db,
+        Err(_) => return Ok(None),
+        Ok(db) => db,
     };
 
     // todo make sure this is safe
