@@ -11,7 +11,6 @@ use crate::models::invoice::Invoice;
 use crate::models::schema::invoices::*;
 use crate::nostr::handle_zap;
 
-#[allow(unused)]
 enum InvoiceState {
     /// The invoice has been created, but no htlc has been received yet.
     Open = 0,
