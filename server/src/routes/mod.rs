@@ -20,11 +20,21 @@ pub(crate) fn handle_anyhow_error(err: anyhow::Error) -> (StatusCode, String) {
 }
 
 pub async fn index(Extension(state): Extension<State>) -> Html<String> {
-    let connect = format!("Connect with me here: {}", state.connection_string);
+    let connect = format!(
+        "This Zap Tunnel is currently running on the following node: {}",
+        state.connection_string
+    );
 
     Html(dioxus::ssr::render_lazy(rsx! {
-            h1 { "Hello world!" }
-            p {"{connect}"}
+        head { title { "Zap Tunnel" } }
+        h1 { "Welcome to my Zap Tunnel!" }
+        p { "This allows you to receive zaps to a self-custodial wallet without having to setup a web server!" }
+        p { "Zap Tunnel works similar to lnproxy but with slightly different trust assumptions." }
+        p { "A Zap Tunnel stores a bunch of amountless invoices on behalf of you and serves wrapped versions of them when an invoice is requested.\
+        Because of this you are trusting that the Zap Tunnel will not just give out its own invoices, and that it won't siphon portions of the funds rounted through it." }
+        p { "Because this is meant to be a replacement for a custodial lightning address, it should be an okay trust assumption" }
+        br {}
+        p {"{connect}"}
     }))
 }
 
