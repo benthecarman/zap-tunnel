@@ -13,8 +13,8 @@ mod test {
     use crate::models::user::*;
     use crate::models::zap::*;
     use bitcoin::hashes::hex::ToHex;
-    use bitcoin::secp256k1::rand;
     use bitcoin::secp256k1::rand::Rng;
+    use bitcoin::secp256k1::{rand, PublicKey};
     use diesel::associations::HasTable;
     use diesel::{Connection, QueryDsl, RunQueryDsl, SqliteConnection, SqliteExpressionMethods};
     use diesel_migrations::MigrationHarness;
@@ -54,10 +54,10 @@ mod test {
         let db_name = gen_tmp_db_name();
         let conn = &mut create_database(&db_name);
 
-        let new_user = NewUser {
-            username: "test_user",
-            auth_key: PUB_KEY_STR,
-        };
+        let new_user = User::new(
+            "test_user".to_string(),
+            PublicKey::from_str(PUB_KEY_STR).unwrap(),
+        );
 
         // create user
         let size = diesel::insert_into(users::table())
@@ -86,10 +86,10 @@ mod test {
         let db_name = gen_tmp_db_name();
         let conn = &mut create_database(&db_name);
 
-        let new_user = NewUser {
-            username: "test_user",
-            auth_key: PUB_KEY_STR,
-        };
+        let new_user = User::new(
+            "test_user".to_string(),
+            PublicKey::from_str(PUB_KEY_STR).unwrap(),
+        );
         // create user
         let size = diesel::insert_into(users::table())
             .values(&new_user)

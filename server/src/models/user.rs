@@ -1,9 +1,12 @@
-use super::schema::users;
-use bitcoin::PublicKey;
-use diesel::prelude::*;
 use std::str::FromStr;
 
-#[derive(Queryable, AsChangeset, Debug, Clone, PartialEq)]
+use bitcoin::secp256k1::PublicKey;
+use diesel::prelude::*;
+use serde::{Deserialize, Serialize};
+
+use super::schema::users;
+
+#[derive(Queryable, Insertable, AsChangeset, Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[diesel(primary_key(username))]
 pub struct User {
     pub username: String,
@@ -21,11 +24,4 @@ impl User {
     pub fn auth_key(&self) -> PublicKey {
         PublicKey::from_str(&self.auth_key).unwrap()
     }
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = users)]
-pub struct NewUser<'a> {
-    pub username: &'a str,
-    pub auth_key: &'a str,
 }

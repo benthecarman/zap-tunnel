@@ -3,7 +3,7 @@ use std::time::Duration;
 use ::nostr::prelude::FromSkStr;
 use ::nostr::Keys;
 use axum::response::Html;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Extension, Router};
 use clap::Parser;
 use diesel::connection::SimpleConnection;
@@ -21,11 +21,13 @@ use crate::subscriber::*;
 mod config;
 mod models;
 mod nostr;
+mod router;
 mod subscriber;
 
 #[derive(Clone)]
-struct State {
+pub struct State {
     connection_string: String,
+    db_pool: Pool<ConnectionManager<SqliteConnection>>,
 }
 
 #[tokio::main]
@@ -51,14 +53,6 @@ async fn main() {
         .expect("Failed to get lnd info")
         .into_inner();
 
-    let state = State {
-        connection_string: lnd_info
-            .uris
-            .first()
-            .expect("Lightning node needs a public uri")
-            .clone(),
-    };
-
     // DB management
     let manager = ConnectionManager::<SqliteConnection>::new(config.db_path);
     let db_pool = Pool::builder()
@@ -75,6 +69,15 @@ async fn main() {
     connection
         .run_pending_migrations(MIGRATIONS)
         .expect("migrations could not run");
+
+    let state = State {
+        connection_string: lnd_info
+            .uris
+            .first()
+            .expect("Lightning node needs a public uri")
+            .clone(),
+        db_pool: db_pool.clone(),
+    };
 
     let lightning_client = client.lightning().clone();
     let router_client = client.router().clone();
@@ -95,9 +98,12 @@ async fn main() {
 
     println!("Webserver running on http://{}", addr);
 
-    let router = Router::new().route("/", get(index)).layer(Extension(state));
+    let server_router = Router::new()
+        .route("/", get(index))
+        .route("/create", post(router::create_user))
+        .layer(Extension(state));
 
-    let server = axum::Server::bind(&addr).serve(router.into_make_service());
+    let server = axum::Server::bind(&addr).serve(server_router.into_make_service());
 
     let graceful = server.with_graceful_shutdown(async {
         tokio::signal::ctrl_c()
