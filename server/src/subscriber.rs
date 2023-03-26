@@ -205,7 +205,11 @@ async fn handle_accepted_invoice(
                         .expect("Failed to handle zap");
                 } else {
                     // failed or unknown
-                    println!("failed to pay invoice: {:?}", ln_invoice.payment_request);
+                    println!(
+                        "failed to pay invoice {}: {}",
+                        invoice_hash.to_hex(),
+                        payment.failure_reason
+                    );
                 }
             }
         }
