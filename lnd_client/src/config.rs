@@ -1,12 +1,15 @@
+use std::str::FromStr;
+
 use clap::Parser;
+use url::Url;
 
 #[derive(Parser, Debug, Clone)]
 #[command(version, author, about)]
 /// A tool to use zap-tunnel with lnd
 pub struct Config {
-    #[clap(default_value_t = String::from("zaptunnel.com"), long)]
+    #[clap(default_value_t = Url::from_str("https://zaptunnel.com").unwrap(), long)]
     /// Host of the proxy server
-    pub proxy_host: String,
+    pub proxy_url: Url,
     #[clap(default_value_t = String::from("127.0.0.1"), long)]
     /// Host of the GRPC server for lnd
     pub lnd_host: String,

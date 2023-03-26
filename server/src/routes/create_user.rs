@@ -21,8 +21,7 @@ pub(crate) fn create_user_impl(
     // create user
     let num_created: usize = diesel::insert_into(users::dsl::users)
         .values(&new_user)
-        .execute(connection)
-        .unwrap();
+        .execute(connection)?;
 
     debug_assert!(num_created == 1);
 

@@ -20,10 +20,10 @@ const LUD_13_STRING: &str = "DO NOT EVER SIGN THIS TEXT WITH YOUR PRIVATE KEYS! 
 async fn main() {
     let config: Config = Config::parse();
 
-    let proxy_host = config.proxy_host.clone();
+    let proxy_url = config.proxy_url.clone();
 
     let client =
-        BlockingClient::from_builder(Builder::new(&format!("https://{}", &proxy_host))).unwrap();
+        BlockingClient::from_builder(Builder::new(&String::from(proxy_url.clone()))).unwrap();
 
     let macaroon_file = config
         .macaroon_file
@@ -52,7 +52,7 @@ async fn main() {
     let hashing_key = sha256::Hash::hash(&Vec::<u8>::from(sig.signature));
 
     let mut engine = HmacEngine::<sha256::Hash>::new(&hashing_key);
-    engine.input(proxy_host.as_bytes());
+    engine.input(proxy_url.host().unwrap().to_string().as_bytes());
     let bytes = Hmac::<sha256::Hash>::from_engine(engine).into_inner();
     let key = SecretKey::from_slice(&bytes).unwrap();
 
@@ -66,7 +66,9 @@ async fn main() {
     let invoices_remaining = match client.check_user(&context, now, &key) {
         Ok(check_user) => check_user.invoices_remaining,
         Err(_) => {
-            let _ = client.create_user(&context, "test_user", &key).unwrap();
+            let _ = client
+                .create_user(&context, "test_user", &key)
+                .expect("failed to create user");
             0
         }
     };

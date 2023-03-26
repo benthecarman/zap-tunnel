@@ -13,4 +13,5 @@ lightning-invoice = { version = "0.22.0", features = ["std"] }
 home = "0.5.4"
 tokio = "1"
 tonic_openssl_lnd = "0.2.0"
+url = {version = "2.3.1", features = ["serde"]}
 zap-tunnel-client = { path = "../client", default-features = false, features = ["blocking"] }

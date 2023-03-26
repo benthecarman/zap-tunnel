@@ -38,7 +38,7 @@ impl Builder {
     /// Instantiate a new builder
     pub fn new(base_url: &str) -> Self {
         Builder {
-            base_url: base_url.to_string(),
+            base_url: base_url.trim_end_matches('/').to_string(),
             proxy: None,
             timeout: None,
         }
