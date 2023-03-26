@@ -5,7 +5,7 @@ diesel::table! {
         payment_hash -> Text,
         invoice -> Text,
         expires_at -> BigInt,
-        used -> Integer,
+        wrapped_expiry -> Nullable<BigInt>,
         paid -> Integer,
         username -> Text,
     }

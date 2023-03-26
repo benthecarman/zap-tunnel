@@ -6,15 +6,14 @@ CREATE TABLE users
 
 CREATE TABLE invoices
 (
-    payment_hash TEXT PRIMARY KEY NOT NULL,
-    invoice      TEXT UNIQUE      NOT NULL,
-    expires_at   BIGINT           NOT NULL,
-    used         INTEGER          NOT NULL,
-    paid         INTEGER          NOT NULL,
-    username     TEXT             NOT NULL REFERENCES users (username)
+    payment_hash   TEXT PRIMARY KEY NOT NULL,
+    invoice        TEXT UNIQUE      NOT NULL,
+    expires_at     BIGINT           NOT NULL,
+    wrapped_expiry BIGINT,
+    paid           INTEGER          NOT NULL,
+    username       TEXT             NOT NULL REFERENCES users (username)
 );
 
-create index invoices_used_idx on invoices (used);
 create index invoices_paid_idx on invoices (paid);
 create index invoices_username_idx on invoices (username);
 

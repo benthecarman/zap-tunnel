@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use crate::models::invoice::Invoice;
+use crate::models::invoice::{Invoice, DEFAULT_INVOICE_EXPIRY};
 use crate::models::zap::Zap;
 use axum::extract::{Path, Query};
 use axum::http::StatusCode;
@@ -107,7 +107,7 @@ pub(crate) async fn get_lnurl_invoice_impl(
         hash: invoice_db.payment_hash().to_vec(),
         value_msat: amount_msats as i64,
         description_hash: desc_hash.to_vec(),
-        expiry: 360,
+        expiry: DEFAULT_INVOICE_EXPIRY,
         cltv_expiry,
         ..Default::default()
     };

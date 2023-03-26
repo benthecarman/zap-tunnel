@@ -14,10 +14,12 @@ pub struct Invoice {
     payment_hash: String,
     invoice: String,
     pub expires_at: i64,
-    used: i32,
+    pub wrapped_expiry: Option<i64>,
     paid: i32,
     username: String,
 }
+
+pub const DEFAULT_INVOICE_EXPIRY: i64 = 360;
 
 impl Invoice {
     pub fn new(invoice: &LnInvoice, username: &str) -> Self {
@@ -30,7 +32,7 @@ impl Invoice {
             payment_hash: invoice.payment_hash().to_hex(),
             invoice: invoice.to_string(),
             expires_at,
-            used: 0,
+            wrapped_expiry: None,
             paid: 0,
             username: String::from(username),
         }
@@ -45,7 +47,7 @@ impl Invoice {
     }
 
     pub fn is_used(&self) -> bool {
-        self.used != 0
+        self.wrapped_expiry.is_some()
     }
 
     pub fn is_paid(&self) -> bool {
@@ -65,11 +67,13 @@ impl Invoice {
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs() as i64;
 
+        let wrapped_expiry = now + DEFAULT_INVOICE_EXPIRY;
+
         conn.transaction(|conn| {
             let invoice = invoices::table
                 .filter(invoices::username.eq(username))
                 .filter(invoices::paid.eq(0))
-                .filter(invoices::used.eq(0))
+                .filter(invoices::wrapped_expiry.is_null())
                 .filter(invoices::expires_at.gt(now))
                 .order(invoices::expires_at.asc())
                 .first::<Self>(conn)?;
@@ -77,7 +81,7 @@ impl Invoice {
             diesel::update(
                 invoices::table.filter(invoices::payment_hash.eq(&invoice.payment_hash)),
             )
-            .set(invoices::used.eq(1))
+            .set(invoices::wrapped_expiry.eq(wrapped_expiry))
             .execute(conn)?;
 
             Ok(invoice)
@@ -109,7 +113,7 @@ impl Invoice {
                 invoices::username
                     .eq(username)
                     .and(invoices::paid.eq(0))
-                    .and(invoices::used.eq(0))
+                    .and(invoices::wrapped_expiry.is_null())
                     .and(invoices::expires_at.gt(now)),
             )
             .first(conn)
