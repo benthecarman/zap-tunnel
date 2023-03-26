@@ -11,7 +11,8 @@ CREATE TABLE invoices
     expires_at     BIGINT           NOT NULL,
     wrapped_expiry BIGINT,
     paid           INTEGER          NOT NULL,
-    username       TEXT             NOT NULL REFERENCES users (username)
+    username       TEXT,
+    FOREIGN KEY (username) REFERENCES users (username)
 );
 
 create index invoices_paid_idx on invoices (paid);

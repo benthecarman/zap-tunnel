@@ -16,13 +16,13 @@ pub struct Invoice {
     pub expires_at: i64,
     pub wrapped_expiry: Option<i64>,
     paid: i32,
-    username: String,
+    username: Option<String>,
 }
 
 pub const DEFAULT_INVOICE_EXPIRY: i64 = 360;
 
 impl Invoice {
-    pub fn new(invoice: &LnInvoice, username: &str) -> Self {
+    pub fn new(invoice: &LnInvoice, username: Option<&str>) -> Self {
         let expires_at: i64 = invoice
             .duration_since_epoch()
             .checked_add(invoice.expiry_time())
@@ -34,7 +34,7 @@ impl Invoice {
             expires_at,
             wrapped_expiry: None,
             paid: 0,
-            username: String::from(username),
+            username: username.map(String::from),
         }
     }
 
@@ -54,7 +54,7 @@ impl Invoice {
         self.paid != 0
     }
 
-    pub fn username(&self) -> String {
+    pub fn username(&self) -> Option<String> {
         self.username.clone()
     }
 

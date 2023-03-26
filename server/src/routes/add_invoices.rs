@@ -25,7 +25,7 @@ pub(crate) fn add_invoices_impl(
     let invoices: Vec<Invoice> = payload
         .invoices
         .iter()
-        .map(|x| Invoice::new(x, &username))
+        .map(|x| Invoice::new(x, Some(&username)))
         .collect();
 
     // insert invoices

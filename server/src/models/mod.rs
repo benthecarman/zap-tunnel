@@ -97,7 +97,7 @@ mod test {
 
         let expiry: i64 = 1631312603;
 
-        let new_invoice = Invoice::new(&inv, &test_username);
+        let new_invoice = Invoice::new(&inv, Some(&test_username));
 
         // create invoice
         let size = diesel::insert_into(invoices::table())
@@ -116,7 +116,7 @@ mod test {
         assert_eq!(invoice_db.invoice().to_string(), INVOICE_STR);
         assert_eq!(invoice_db.is_paid(), false);
         assert_eq!(invoice_db.expires_at, expiry);
-        assert_eq!(invoice_db.username(), test_username);
+        assert_eq!(invoice_db.username(), Some(test_username));
 
         teardown_database(&db_name);
     }

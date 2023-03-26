@@ -7,7 +7,7 @@ diesel::table! {
         expires_at -> BigInt,
         wrapped_expiry -> Nullable<BigInt>,
         paid -> Integer,
-        username -> Text,
+        username -> Nullable<Text>,
     }
 }
 
