@@ -92,8 +92,11 @@ pub(crate) async fn get_lnurl_invoice_impl(
         Ok(db) => db,
     };
 
-    // todo make sure this is safe
-    let cltv_expiry = invoice_db.invoice().min_final_cltv_expiry_delta() + 144;
+    let cltv_expiry = invoice_db.invoice().min_final_cltv_expiry_delta() * 6 + 3;
+
+    if cltv_expiry > 2016 {
+        return Err(anyhow!("CLTV expiry too long"));
+    }
 
     let request = AddHoldInvoiceRequest {
         hash: invoice_db.payment_hash().to_vec(),
