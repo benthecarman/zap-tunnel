@@ -46,7 +46,7 @@ impl AsyncClient {
         let pubkey = PublicKey::from_secret_key(context, private_key);
 
         let signature =
-            context.sign_ecdsa_low_r(&CreateUser::message_hash(&username).unwrap(), &private_key);
+            context.sign_ecdsa_low_r(&CreateUser::message_hash(username).unwrap(), private_key);
 
         let payload = CreateUser {
             username: String::from(username),
@@ -64,6 +64,29 @@ impl AsyncClient {
         Ok(resp.error_for_status()?.json().await?)
     }
 
+    pub async fn check_user<C: Signing>(
+        &self,
+        context: &Secp256k1<C>,
+        current_time: u64,
+        private_key: &SecretKey,
+    ) -> Result<CheckUser, Error> {
+        let pubkey = PublicKey::from_secret_key(context, private_key);
+
+        let signature =
+            context.sign_ecdsa_low_r(&CheckUser::message_hash(current_time).unwrap(), private_key);
+
+        let resp = self
+            .client
+            .get(&format!(
+                "{}/check-user?time={}&pubkey={}&signature={}",
+                self.url, current_time, pubkey, signature
+            ))
+            .send()
+            .await?;
+
+        Ok(resp.error_for_status()?.json().await?)
+    }
+
     pub async fn add_invoices<C: Signing>(
         &self,
         context: &Secp256k1<C>,
@@ -73,7 +96,7 @@ impl AsyncClient {
         let pubkey = PublicKey::from_secret_key(context, private_key);
 
         let signature =
-            context.sign_ecdsa_low_r(&AddInvoices::message_hash(invoices).unwrap(), &private_key);
+            context.sign_ecdsa_low_r(&AddInvoices::message_hash(invoices).unwrap(), private_key);
 
         let payload = AddInvoices {
             pubkey: pubkey.to_string(),

@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use ureq::{Agent, Proxy};
 
-use crate::{AddInvoices, Builder, CreateUser, CreateUserResponse, Error};
+use crate::{AddInvoices, Builder, CheckUser, CreateUser, CreateUserResponse, Error};
 
 #[derive(Debug, Clone)]
 pub struct BlockingClient {
@@ -42,10 +42,10 @@ impl BlockingClient {
         username: &str,
         private_key: &SecretKey,
     ) -> Result<CreateUserResponse, Error> {
-        let pubkey = PublicKey::from_secret_key(context, &private_key);
+        let pubkey = PublicKey::from_secret_key(context, private_key);
 
         let signature =
-            context.sign_ecdsa_low_r(&CreateUser::message_hash(&username).unwrap(), &private_key);
+            context.sign_ecdsa_low_r(&CreateUser::message_hash(username).unwrap(), private_key);
 
         let payload = CreateUser {
             username: String::from(username),
@@ -65,16 +65,42 @@ impl BlockingClient {
         }
     }
 
+    pub fn check_user<C: Signing>(
+        &self,
+        context: &Secp256k1<C>,
+        current_time: u64,
+        private_key: &SecretKey,
+    ) -> Result<CheckUser, Error> {
+        let pubkey = PublicKey::from_secret_key(context, private_key);
+
+        let signature =
+            context.sign_ecdsa_low_r(&CheckUser::message_hash(current_time).unwrap(), private_key);
+
+        let resp = self
+            .agent
+            .get(&format!(
+                "{}/check-user?time={}&pubkey={}&signature={}",
+                self.url, current_time, pubkey, signature
+            ))
+            .call();
+
+        match resp {
+            Ok(resp) => Ok(resp.into_json()?),
+            Err(ureq::Error::Status(code, _)) => Err(Error::HttpResponse(code)),
+            Err(e) => Err(Error::Ureq(e)),
+        }
+    }
+
     pub fn add_invoices<C: Signing>(
         &self,
         context: &Secp256k1<C>,
         private_key: &SecretKey,
         invoices: &[Invoice],
     ) -> Result<CreateUserResponse, Error> {
-        let pubkey = PublicKey::from_secret_key(context, &private_key);
+        let pubkey = PublicKey::from_secret_key(context, private_key);
 
         let signature =
-            context.sign_ecdsa_low_r(&AddInvoices::message_hash(invoices).unwrap(), &private_key);
+            context.sign_ecdsa_low_r(&AddInvoices::message_hash(invoices).unwrap(), private_key);
 
         let payload = AddInvoices {
             pubkey: pubkey.to_string(),

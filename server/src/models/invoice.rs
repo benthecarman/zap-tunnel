@@ -69,4 +69,21 @@ impl Invoice {
             .first::<Self>(conn)
             .ok()
     }
+
+    pub fn get_num_invoices_available(
+        username: &str,
+        conn: &mut SqliteConnection,
+    ) -> anyhow::Result<i64> {
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
+        Ok(invoices::table
+            .filter(invoices::username.eq(username))
+            .filter(invoices::paid.eq(0))
+            .filter(invoices::expires_at.gt(now))
+            .count()
+            .get_result(conn)?)
+    }
 }

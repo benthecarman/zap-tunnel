@@ -4,12 +4,14 @@ use axum::Extension;
 use dioxus::prelude::*;
 
 pub use add_invoices::add_invoices;
+pub use check_user::check_user;
 pub use create_user::create_user;
 pub use lnurlp::{get_lnurl_invoice, get_lnurlp};
 
 use crate::State;
 
 mod add_invoices;
+mod check_user;
 mod create_user;
 mod lnurlp;
 
