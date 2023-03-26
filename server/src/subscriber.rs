@@ -1,8 +1,10 @@
 use bitcoin::hashes::hex::{FromHex, ToHex};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SqliteConnection};
+use lnrpc::payment::PaymentStatus;
 use nostr::Keys;
 use tonic_openssl_lnd::invoicesrpc::SubscribeSingleInvoiceRequest;
+use tonic_openssl_lnd::lnrpc::invoice::InvoiceState;
 use tonic_openssl_lnd::{
     invoicesrpc, lnrpc, LndInvoicesClient, LndLightningClient, LndRouterClient,
 };
@@ -10,29 +12,6 @@ use tonic_openssl_lnd::{
 use crate::models::invoice::Invoice;
 use crate::models::schema::invoices::*;
 use crate::nostr::handle_zap;
-
-enum InvoiceState {
-    /// The invoice has been created, but no htlc has been received yet.
-    Open = 0,
-    /// The invoice has been paid.
-    Settled = 1,
-    /// The invoice has been canceled by the user.
-    Canceled = 2,
-    /// The invoice has been accepted but waiting for a preimage to settle.
-    Accepted = 3,
-}
-
-impl InvoiceState {
-    fn from_i32(value: i32) -> Option<Self> {
-        match value {
-            0 => Some(InvoiceState::Open),
-            1 => Some(InvoiceState::Settled),
-            2 => Some(InvoiceState::Canceled),
-            3 => Some(InvoiceState::Accepted),
-            _ => None,
-        }
-    }
-}
 
 pub async fn start_invoice_subscription(
     mut lnd: LndLightningClient,
@@ -181,7 +160,9 @@ async fn handle_accepted_invoice(
                 .into_inner();
 
             if let Some(payment) = stream.message().await.ok().flatten() {
-                if payment.status == 2 {
+                let status =
+                    PaymentStatus::from_i32(payment.status).expect("Unknown payment status");
+                if status == PaymentStatus::Succeeded {
                     // success
                     println!("paid invoice: {:?}", ln_invoice.payment_request);
 
@@ -206,7 +187,8 @@ async fn handle_accepted_invoice(
                 } else {
                     // failed or unknown
                     println!(
-                        "failed to pay invoice {}: {}",
+                        "failed to pay invoice ({}) {}: {}",
+                        status as i32,
                         invoice_hash.to_hex(),
                         payment.failure_reason
                     );
