@@ -22,7 +22,7 @@ use crate::State;
 fn calculate_metadata(username: &str) -> String {
     // todo change identifier to use correct host
     format!(
-        "[[\"text/plain\", \"Pay to {}\"], [\"text/identifier\", \"{}@127.0.0.1:3000\"]]",
+        "[[\"text/plain\", \"Pay to {}\"], [\"text/identifier\", \"{}@zaptunnel.com\"]]",
         username, username
     )
 }
@@ -35,7 +35,7 @@ pub(crate) fn get_lnurlp_impl(
     let metadata = calculate_metadata(&username);
     let _ = crate::models::user::User::get_by_username(connection, &username)?;
     // todo change callback to use correct host and https
-    let callback = format!("http://127.0.0.1:3000/lnurlp/{username}");
+    let callback = format!("https://zaptunnel.com/lnurlp/{username}");
     let max_sendable = 100_000_000;
     let min_sendable = 1_000;
 

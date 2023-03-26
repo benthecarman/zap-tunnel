@@ -23,7 +23,7 @@ async fn main() {
     let proxy_host = config.proxy_host.clone();
 
     let client =
-        BlockingClient::from_builder(Builder::new(&format!("http://{}", &proxy_host))).unwrap();
+        BlockingClient::from_builder(Builder::new(&format!("https://{}", &proxy_host))).unwrap();
 
     let macaroon_file = config
         .macaroon_file
