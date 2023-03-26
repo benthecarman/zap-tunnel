@@ -19,12 +19,14 @@ pub(crate) fn create_user_impl(
     let new_user = User::new(&payload.username, payload.pubkey()?);
 
     // create user
-    let user: User = diesel::insert_into(users::dsl::users)
+    let num_created: usize = diesel::insert_into(users::dsl::users)
         .values(&new_user)
-        .get_result(connection)
+        .execute(connection)
         .unwrap();
 
-    Ok(user)
+    debug_assert!(num_created == 1);
+
+    Ok(new_user)
 }
 
 pub async fn create_user(

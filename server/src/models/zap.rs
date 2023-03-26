@@ -47,7 +47,9 @@ impl Zap {
 
     pub fn create(zap: Zap, conn: &mut SqliteConnection) -> Result<Self, diesel::result::Error> {
         diesel::insert_into(zaps::table)
-            .values(zap)
-            .get_result(conn)
+            .values(&zap)
+            .execute(conn)?;
+
+        Ok(zap)
     }
 }

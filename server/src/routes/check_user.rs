@@ -27,7 +27,7 @@ pub(crate) fn check_user_impl(
 
     let user = User::get_by_pubkey(connection, &pubkey.to_string())
         .ok_or(anyhow!("No user found with pubkey {}", pubkey.to_string()))?;
-    let num_invoices: i64 = Invoice::get_num_invoices_available(&user.username, connection)?;
+    let num_invoices: usize = Invoice::get_num_invoices_available(&user.username, connection)?;
 
     Ok(CheckUser {
         username: user.username,

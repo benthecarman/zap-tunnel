@@ -88,7 +88,7 @@ impl Invoice {
     pub fn get_num_invoices_available(
         username: &str,
         conn: &mut SqliteConnection,
-    ) -> anyhow::Result<i64> {
+    ) -> anyhow::Result<usize> {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -99,6 +99,6 @@ impl Invoice {
             .filter(invoices::paid.eq(0))
             .filter(invoices::expires_at.gt(now))
             .count()
-            .get_result(conn)?)
+            .execute(conn)?)
     }
 }
