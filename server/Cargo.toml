@@ -25,3 +25,4 @@ tonic_openssl_lnd = "0.2.0"
 tokio = "1"
 tokio-stream = "0.1.11"
 serde = "1.0"
+zap-tunnel-client = { path = "../client", default-features = false }

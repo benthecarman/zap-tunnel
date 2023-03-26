@@ -1,7 +1,7 @@
 CREATE TABLE users
 (
     username TEXT PRIMARY KEY NOT NULL,
-    auth_key TEXT             NOT NULL
+    pubkey   TEXT UNIQUE      NOT NULL
 );
 
 CREATE TABLE invoices

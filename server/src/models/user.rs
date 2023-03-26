@@ -10,19 +10,19 @@ use super::schema::users;
 #[diesel(primary_key(username))]
 pub struct User {
     pub username: String,
-    auth_key: String,
+    pubkey: String,
 }
 
 impl User {
-    pub fn new(username: &str, auth_key: PublicKey) -> Self {
+    pub fn new(username: &str, pubkey: PublicKey) -> Self {
         Self {
             username: String::from(username),
-            auth_key: auth_key.to_string(),
+            pubkey: pubkey.to_string(),
         }
     }
 
-    pub fn auth_key(&self) -> PublicKey {
-        PublicKey::from_str(&self.auth_key).unwrap()
+    pub fn pubkey(&self) -> PublicKey {
+        PublicKey::from_str(&self.pubkey).unwrap()
     }
 
     pub fn get_by_username(conn: &mut SqliteConnection, username: &str) -> Option<Self> {
@@ -32,9 +32,9 @@ impl User {
             .ok()
     }
 
-    pub fn get_by_auth_key(conn: &mut SqliteConnection, auth_key: &str) -> Option<Self> {
+    pub fn get_by_pubkey(conn: &mut SqliteConnection, pubkey: &str) -> Option<Self> {
         users::table
-            .filter(users::auth_key.eq(auth_key))
+            .filter(users::pubkey.eq(pubkey))
             .first::<Self>(conn)
             .ok()
     }

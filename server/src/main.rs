@@ -105,10 +105,10 @@ async fn main() {
 
     let server_router = Router::new()
         .route("/", get(index))
-        .route("/create", post(routes::create_user))
+        .route("/create-user", post(routes::create_user))
         .route("/.well-known/lnurlp/:username", get(routes::get_lnurlp))
         .route("/lnurlp/:username", get(routes::get_lnurl_invoice))
-        .route("/add_invoices", post(routes::add_invoices))
+        .route("/add-invoices", post(routes::add_invoices))
         .fallback(fallback)
         .layer(Extension(state));
 

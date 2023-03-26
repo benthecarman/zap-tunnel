@@ -71,7 +71,7 @@ mod test {
             .unwrap();
 
         assert_eq!(user.username, "test_user");
-        assert_eq!(user.auth_key().to_string(), PUB_KEY_STR);
+        assert_eq!(user.pubkey().to_string(), PUB_KEY_STR);
 
         teardown_database(&db_name);
     }

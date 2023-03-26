@@ -13,7 +13,7 @@ diesel::table! {
 diesel::table! {
     users (username) {
         username -> Text,
-        auth_key -> Text,
+        pubkey -> Text,
     }
 }
 

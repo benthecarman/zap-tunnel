@@ -88,7 +88,7 @@ mod test {
         let user = super::create_user::create_user_impl(payload, conn).unwrap();
 
         assert_eq!(user.username, username);
-        assert_eq!(user.auth_key(), pubkey);
+        assert_eq!(user.pubkey(), pubkey);
 
         teardown_database(&db_name);
     }
@@ -114,7 +114,7 @@ mod test {
         let user = super::create_user::create_user_impl(payload, conn).unwrap();
 
         assert_eq!(user.username, username);
-        assert_eq!(user.auth_key(), pubkey);
+        assert_eq!(user.pubkey(), pubkey);
 
         let lnurlp =
             super::lnurlp::get_lnurlp_impl(user.username, pubkey.x_only_public_key().0, conn)
@@ -148,7 +148,7 @@ mod test {
         let user = super::create_user::create_user_impl(payload, conn).unwrap();
 
         assert_eq!(user.username, username);
-        assert_eq!(user.auth_key(), pubkey);
+        assert_eq!(user.pubkey(), pubkey);
 
         let ln_invoice = LnInvoice::from_str(INVOICE_STR).unwrap();
 
