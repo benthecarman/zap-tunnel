@@ -1,5 +1,5 @@
 [workspace]
 
 members = [
-    "server", "client"
+    "server", "client", "lnd_client"
 ]
