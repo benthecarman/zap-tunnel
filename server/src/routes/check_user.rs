@@ -27,7 +27,7 @@ pub(crate) fn check_user_impl(
 
     let user = User::get_by_pubkey(connection, &pubkey.to_string())
         .ok_or(anyhow!("No user found with pubkey {}", pubkey.to_string()))?;
-    let num_invoices: usize = Invoice::get_num_invoices_available(&user.username, connection)?;
+    let num_invoices: i64 = Invoice::get_num_invoices_available(&user.username, connection)?;
 
     Ok(CheckUser {
         username: user.username,
@@ -40,7 +40,12 @@ pub async fn check_user(
     Extension(state): Extension<State>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<CheckUser>, (StatusCode, String)> {
-    let mut connection = state.db_pool.get().unwrap();
+    let mut connection = state.db_pool.get().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            String::from("Failed to get database connection"),
+        )
+    })?;
 
     let time = params.get("time").and_then(|p| p.parse::<u64>().ok());
     let pubkey = params
@@ -58,9 +63,9 @@ pub async fn check_user(
     }
 
     match check_user_impl(
-        time.unwrap(),
-        &pubkey.unwrap(),
-        &signature.unwrap(),
+        time.expect("Checked above"),
+        &pubkey.expect("Checked above"),
+        &signature.expect("Checked above"),
         &mut connection,
     ) {
         Ok(res) => Ok(Json(res)),

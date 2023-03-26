@@ -1,3 +1,4 @@
+#[cfg(test)]
 use std::str::FromStr;
 
 use bitcoin::secp256k1::PublicKey;
@@ -21,8 +22,9 @@ impl User {
         }
     }
 
-    pub fn pubkey(&self) -> PublicKey {
-        PublicKey::from_str(&self.pubkey).unwrap()
+    #[cfg(test)]
+    pub(crate) fn pubkey(&self) -> PublicKey {
+        PublicKey::from_str(&self.pubkey).expect("invalid pubkey")
     }
 
     pub fn get_by_username(conn: &mut SqliteConnection, username: &str) -> Option<Self> {

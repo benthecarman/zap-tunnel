@@ -45,8 +45,10 @@ impl AsyncClient {
     ) -> Result<CreateUserResponse, Error> {
         let pubkey = PublicKey::from_secret_key(context, private_key);
 
-        let signature =
-            context.sign_ecdsa_low_r(&CreateUser::message_hash(username).unwrap(), private_key);
+        let signature = context.sign_ecdsa_low_r(
+            &CreateUser::message_hash(username).expect("Failed to create hash"),
+            private_key,
+        );
 
         let payload = CreateUser {
             username: String::from(username),
@@ -72,8 +74,10 @@ impl AsyncClient {
     ) -> Result<CheckUser, Error> {
         let pubkey = PublicKey::from_secret_key(context, private_key);
 
-        let signature =
-            context.sign_ecdsa_low_r(&CheckUser::message_hash(current_time).unwrap(), private_key);
+        let signature = context.sign_ecdsa_low_r(
+            &CheckUser::message_hash(current_time).expect("Failed to create hash"),
+            private_key,
+        );
 
         let resp = self
             .client
@@ -95,8 +99,10 @@ impl AsyncClient {
     ) -> Result<usize, Error> {
         let pubkey = PublicKey::from_secret_key(context, private_key);
 
-        let signature =
-            context.sign_ecdsa_low_r(&AddInvoices::message_hash(invoices).unwrap(), private_key);
+        let signature = context.sign_ecdsa_low_r(
+            &AddInvoices::message_hash(invoices).expect("Failed to create hash"),
+            private_key,
+        );
 
         let payload = AddInvoices {
             pubkey: pubkey.to_string(),

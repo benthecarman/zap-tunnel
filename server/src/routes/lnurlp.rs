@@ -54,7 +54,12 @@ pub async fn get_lnurlp(
     Path(username): Path<String>,
     Extension(state): Extension<State>,
 ) -> Result<Json<PayResponse>, (StatusCode, String)> {
-    let mut connection = state.db_pool.get().unwrap();
+    let mut connection = state.db_pool.get().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            String::from("Failed to get database connection"),
+        )
+    })?;
 
     match get_lnurlp_impl(username, state.nostr_pubkey, &mut connection) {
         Some(res) => Ok(Json(res)),
@@ -128,13 +133,20 @@ pub async fn get_lnurl_invoice(
             String::from("{\"status\":\"ERROR\",\"reason\":\"Missing amount parameter.\"}"),
         )),
         Some(amount_msats) => {
-            let zap_request = params.get("nostr").map(|event_str| {
-                Event::from_json(event_str)
-                    .map_err(|_| (StatusCode::NOT_FOUND, String::from("Invalid zap request")))
-                    .unwrap()
-            });
+            let zap_request =
+                match params.get("nostr") {
+                    Some(event_str) => Some(Event::from_json(event_str).map_err(|_| {
+                        (StatusCode::NOT_FOUND, String::from("Invalid zap request"))
+                    })?),
+                    None => None,
+                };
 
-            let mut connection = state.db_pool.get().unwrap();
+            let mut connection = state.db_pool.get().map_err(|_| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    String::from("Failed to get database connection"),
+                )
+            })?;
 
             let res = get_lnurl_invoice_impl(
                 username,

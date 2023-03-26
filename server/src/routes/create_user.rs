@@ -34,7 +34,12 @@ pub async fn create_user(
     Extension(state): Extension<State>,
     Json(payload): Json<CreateUser>,
 ) -> Result<Json<User>, (StatusCode, String)> {
-    let mut connection = state.db_pool.get().unwrap();
+    let mut connection = state.db_pool.get().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            String::from("Failed to get database connection"),
+        )
+    })?;
 
     match create_user_impl(payload, &mut connection) {
         Ok(res) => Ok(Json(res)),

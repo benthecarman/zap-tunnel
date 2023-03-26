@@ -1,7 +1,7 @@
-use bitcoin::hashes::hex::ToHex;
 use std::str::FromStr;
 use std::time::SystemTime;
 
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::hashes::sha256::Hash as Sha256;
 use diesel::prelude::*;
 use lightning_invoice::Invoice as LnInvoice;
@@ -62,8 +62,7 @@ impl Invoice {
 
     pub fn get_next_invoice(username: String, conn: &mut SqliteConnection) -> anyhow::Result<Self> {
         let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
+            .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs() as i64;
 
         conn.transaction(|conn| {
@@ -99,10 +98,9 @@ impl Invoice {
     pub fn get_num_invoices_available(
         username: &str,
         conn: &mut SqliteConnection,
-    ) -> anyhow::Result<usize> {
+    ) -> anyhow::Result<i64> {
         let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
+            .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs() as i64;
 
         let count: i64 = invoices::table
@@ -115,8 +113,8 @@ impl Invoice {
                     .and(invoices::expires_at.gt(now)),
             )
             .first(conn)
-            .unwrap();
+            .expect("Error counting invoices");
 
-        Ok(count as usize)
+        Ok(count)
     }
 }

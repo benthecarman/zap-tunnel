@@ -34,7 +34,7 @@ pub struct State {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     let config: Config = Config::parse();
 
     let nostr_key = Keys::from_sk_str(&config.nsec).expect("Failed to parse nsec key");
@@ -68,7 +68,7 @@ async fn main() {
         .test_on_check_out(true)
         .build(manager)
         .expect("Could not build connection pool");
-    let connection = &mut db_pool.get().unwrap();
+    let connection = &mut db_pool.get()?;
     connection
         .run_pending_migrations(MIGRATIONS)
         .expect("migrations could not run");
@@ -125,6 +125,8 @@ async fn main() {
     if let Err(e) = graceful.await {
         eprintln!("shutdown error: {}", e);
     }
+
+    Ok(())
 }
 
 #[derive(Debug)]
