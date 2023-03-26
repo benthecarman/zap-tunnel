@@ -150,6 +150,7 @@ pub async fn get_lnurl_invoice(
                     let res = LnURLPayInvoice {
                         pr: inv.to_string(),
                     };
+                    println!("Generated invoice: {}", res.pr);
                     Ok(Json(res))
                 }
                 Ok(None) => Err((

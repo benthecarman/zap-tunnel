@@ -85,6 +85,17 @@ impl Invoice {
         })
     }
 
+    pub fn mark_invoice_paid(
+        payment_hash: &str,
+        conn: &mut SqliteConnection,
+    ) -> anyhow::Result<()> {
+        diesel::update(invoices::table.filter(invoices::payment_hash.eq(&payment_hash)))
+            .set(invoices::paid.eq(1))
+            .execute(conn)?;
+
+        Ok(())
+    }
+
     pub fn get_num_invoices_available(
         username: &str,
         conn: &mut SqliteConnection,
