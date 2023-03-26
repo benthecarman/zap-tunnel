@@ -43,10 +43,7 @@ pub async fn start_invoice_subscription(
 ) {
     println!("Starting invoice subscription");
 
-    let sub = InvoiceSubscription {
-        add_index: 0,
-        settle_index: 0,
-    };
+    let sub = InvoiceSubscription::default();
     let mut invoice_stream = lnd
         .subscribe_invoices(sub)
         .await
