@@ -14,14 +14,28 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(username: String, auth_key: PublicKey) -> Self {
+    pub fn new(username: &str, auth_key: PublicKey) -> Self {
         Self {
-            username,
+            username: String::from(username),
             auth_key: auth_key.to_string(),
         }
     }
 
     pub fn auth_key(&self) -> PublicKey {
         PublicKey::from_str(&self.auth_key).unwrap()
+    }
+
+    pub fn get_by_username(conn: &mut SqliteConnection, username: &str) -> Option<Self> {
+        users::table
+            .filter(users::username.eq(username))
+            .first::<Self>(conn)
+            .ok()
+    }
+
+    pub fn get_by_auth_key(conn: &mut SqliteConnection, auth_key: &str) -> Option<Self> {
+        users::table
+            .filter(users::auth_key.eq(auth_key))
+            .first::<Self>(conn)
+            .ok()
     }
 }

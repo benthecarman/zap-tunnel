@@ -8,7 +8,7 @@ use nostr::prelude::Event;
 
 use super::schema::zaps;
 
-#[derive(Queryable, AsChangeset, Debug, Clone, PartialEq)]
+#[derive(Queryable, AsChangeset, Insertable, Debug, Clone, PartialEq)]
 #[diesel(primary_key(payment_hash))]
 pub struct Zap {
     payment_hash: String,
@@ -18,7 +18,7 @@ pub struct Zap {
 }
 
 impl Zap {
-    pub fn new(invoice: Invoice, request: Event, note_id: Option<Sha256>) -> Self {
+    pub fn new(invoice: &Invoice, request: Event, note_id: Option<Sha256>) -> Self {
         Self {
             payment_hash: invoice.payment_hash().to_hex(),
             invoice: invoice.to_string(),
@@ -44,13 +44,10 @@ impl Zap {
             .as_ref()
             .map(|hash| Sha256::from_str(hash).expect("invalid note id"))
     }
-}
 
-#[derive(Insertable)]
-#[diesel(table_name = zaps)]
-pub struct NewZap<'a> {
-    pub payment_hash: &'a str,
-    pub invoice: &'a str,
-    pub request: &'a str,
-    pub note_id: Option<&'a str>,
+    pub fn create(zap: Zap, conn: &mut SqliteConnection) -> Result<Self, diesel::result::Error> {
+        diesel::insert_into(zaps::table)
+            .values(zap)
+            .get_result(conn)
+    }
 }

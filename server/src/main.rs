@@ -1,7 +1,8 @@
 use std::time::Duration;
 
-use ::nostr::prelude::FromSkStr;
+use ::nostr::prelude::{FromSkStr, XOnlyPublicKey};
 use ::nostr::Keys;
+use axum::http::{StatusCode, Uri};
 use axum::routing::{get, post};
 use axum::{Extension, Router};
 use clap::Parser;
@@ -11,6 +12,7 @@ use diesel::SqliteConnection;
 use diesel_migrations::MigrationHarness;
 use tokio::task::spawn;
 use tonic_openssl_lnd::lnrpc::{GetInfoRequest, GetInfoResponse};
+use tonic_openssl_lnd::LndInvoicesClient;
 
 use crate::config::*;
 use crate::models::MIGRATIONS;
@@ -26,6 +28,8 @@ mod subscriber;
 #[derive(Clone)]
 pub struct State {
     connection_string: String,
+    nostr_pubkey: XOnlyPublicKey,
+    invoice_client: LndInvoicesClient,
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 }
 
@@ -75,6 +79,8 @@ async fn main() {
             .first()
             .expect("Lightning node needs a public uri")
             .clone(),
+        nostr_pubkey: nostr_key.public_key(),
+        invoice_client: client.invoices().clone(),
         db_pool: db_pool.clone(),
     };
 
@@ -100,6 +106,10 @@ async fn main() {
     let server_router = Router::new()
         .route("/", get(index))
         .route("/create", post(routes::create_user))
+        .route("/.well-known/lnurlp/:username", get(routes::get_lnurlp))
+        .route("/lnurlp/:username", get(routes::get_lnurl_invoice))
+        .route("/add_invoices", post(routes::add_invoices))
+        .fallback(fallback)
         .layer(Extension(state));
 
     let server = axum::Server::bind(&addr).serve(server_router.into_make_service());
@@ -141,4 +151,8 @@ impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
         })()
         .map_err(diesel::r2d2::Error::QueryError)
     }
+}
+
+async fn fallback(uri: Uri) -> (StatusCode, String) {
+    (StatusCode::NOT_FOUND, format!("No route for {}", uri))
 }

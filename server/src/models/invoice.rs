@@ -1,5 +1,6 @@
 use bitcoin::hashes::hex::ToHex;
 use std::str::FromStr;
+use std::time::SystemTime;
 
 use bitcoin::hashes::sha256::Hash as Sha256;
 use diesel::prelude::*;
@@ -7,7 +8,7 @@ use lightning_invoice::Invoice as LnInvoice;
 
 use super::schema::invoices;
 
-#[derive(Queryable, AsChangeset, Debug, Clone, PartialEq)]
+#[derive(Queryable, AsChangeset, Insertable, Debug, Clone, PartialEq)]
 #[diesel(primary_key(payment_hash))]
 pub struct Invoice {
     payment_hash: String,
@@ -18,7 +19,7 @@ pub struct Invoice {
 }
 
 impl Invoice {
-    pub fn new(invoice: LnInvoice, username: String) -> Self {
+    pub fn new(invoice: &LnInvoice, username: &str) -> Self {
         let expires_at: i64 = invoice
             .duration_since_epoch()
             .checked_add(invoice.expiry_time())
@@ -29,7 +30,7 @@ impl Invoice {
             invoice: invoice.to_string(),
             expires_at,
             paid: 0,
-            username,
+            username: String::from(username),
         }
     }
 
@@ -52,14 +53,20 @@ impl Invoice {
     pub fn set_paid(&mut self) {
         self.paid = 1;
     }
-}
 
-#[derive(Insertable)]
-#[diesel(table_name = invoices)]
-pub struct NewInvoice<'a> {
-    pub payment_hash: &'a str,
-    pub invoice: &'a str,
-    pub expires_at: i64,
-    pub paid: i32,
-    pub username: &'a str,
+    // todo mark invoice as used
+    pub fn get_next_invoice(username: String, conn: &mut SqliteConnection) -> Option<Self> {
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
+        invoices::table
+            .filter(invoices::username.eq(username))
+            .filter(invoices::paid.eq(0))
+            .filter(invoices::expires_at.gt(now))
+            .order(invoices::expires_at.asc())
+            .first::<Self>(conn)
+            .ok()
+    }
 }

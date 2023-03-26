@@ -54,10 +54,7 @@ mod test {
         let db_name = gen_tmp_db_name();
         let conn = &mut create_database(&db_name);
 
-        let new_user = User::new(
-            "test_user".to_string(),
-            PublicKey::from_str(PUB_KEY_STR).unwrap(),
-        );
+        let new_user = User::new("test_user", PublicKey::from_str(PUB_KEY_STR).unwrap());
 
         // create user
         let size = diesel::insert_into(users::table())
@@ -86,10 +83,9 @@ mod test {
         let db_name = gen_tmp_db_name();
         let conn = &mut create_database(&db_name);
 
-        let new_user = User::new(
-            "test_user".to_string(),
-            PublicKey::from_str(PUB_KEY_STR).unwrap(),
-        );
+        let test_username: String = String::from("test_user");
+
+        let new_user = User::new(&test_username, PublicKey::from_str(PUB_KEY_STR).unwrap());
         // create user
         let size = diesel::insert_into(users::table())
             .values(&new_user)
@@ -99,15 +95,9 @@ mod test {
 
         let inv: LnInvoice = LnInvoice::from_str(INVOICE_STR).unwrap();
 
-        let expiry: i64 = 1679625552;
+        let expiry: i64 = 1631312603;
 
-        let new_invoice = NewInvoice {
-            payment_hash: &inv.payment_hash().to_hex(),
-            invoice: INVOICE_STR,
-            expires_at: expiry,
-            paid: 0,
-            username: "test_user",
-        };
+        let new_invoice = Invoice::new(&inv, &test_username);
 
         // create invoice
         let size = diesel::insert_into(invoices::table())
@@ -126,7 +116,7 @@ mod test {
         assert_eq!(invoice_db.invoice().to_string(), INVOICE_STR);
         assert_eq!(invoice_db.is_paid(), false);
         assert_eq!(invoice_db.expires_at, expiry);
-        assert_eq!(invoice_db.username(), "test_user");
+        assert_eq!(invoice_db.username(), test_username);
 
         teardown_database(&db_name);
     }
@@ -138,12 +128,9 @@ mod test {
         let conn = &mut create_database(&db_name);
 
         let inv: LnInvoice = LnInvoice::from_str(INVOICE_STR).unwrap();
-        let new_zap = NewZap {
-            payment_hash: &inv.payment_hash().to_hex(),
-            invoice: INVOICE_STR,
-            request: "{\"pubkey\":\"32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245\",\"content\":\"\",\"id\":\"d9cc14d50fcb8c27539aacf776882942c1a11ea4472f8cdec1dea82fab66279d\",\"created_at\":1674164539,\"sig\":\"77127f636577e9029276be060332ea565deaf89ff215a494ccff16ae3f757065e2bc59b2e8c113dd407917a010b3abd36c8d7ad84c0e3ab7dab3a0b0caa9835d\",\"kind\":9734,\"tags\":[[\"e\",\"3624762a1274dd9636e0c552b53086d70bc88c165bc4dc0f9e836a1eaf86c3b8\"],[\"p\",\"32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245\"],[\"relays\",\"wss://relay.damus.io\",\"wss://nostr-relay.wlvs.space\",\"wss://nostr.fmt.wiz.biz\",\"wss://relay.nostr.bg\",\"wss://nostr.oxtr.dev\",\"wss://nostr.v0l.io\",\"wss://brb.io\",\"wss://nostr.bitcoiner.social\",\"ws://monad.jb55.com:8080\",\"wss://relay.snort.social\"]]}",
-            note_id: None,
-        };
+        let zap_request = nostr::Event::from_json("{\"pubkey\":\"32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245\",\"content\":\"\",\"id\":\"d9cc14d50fcb8c27539aacf776882942c1a11ea4472f8cdec1dea82fab66279d\",\"created_at\":1674164539,\"sig\":\"77127f636577e9029276be060332ea565deaf89ff215a494ccff16ae3f757065e2bc59b2e8c113dd407917a010b3abd36c8d7ad84c0e3ab7dab3a0b0caa9835d\",\"kind\":9734,\"tags\":[[\"e\",\"3624762a1274dd9636e0c552b53086d70bc88c165bc4dc0f9e836a1eaf86c3b8\"],[\"p\",\"32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245\"],[\"relays\",\"wss://relay.damus.io\",\"wss://nostr-relay.wlvs.space\",\"wss://nostr.fmt.wiz.biz\",\"wss://relay.nostr.bg\",\"wss://nostr.oxtr.dev\",\"wss://nostr.v0l.io\",\"wss://brb.io\",\"wss://nostr.bitcoiner.social\",\"ws://monad.jb55.com:8080\",\"wss://relay.snort.social\"]]}").unwrap();
+
+        let new_zap = Zap::new(&inv, zap_request, None);
 
         // create zap
         let size = diesel::insert_into(zaps::table())

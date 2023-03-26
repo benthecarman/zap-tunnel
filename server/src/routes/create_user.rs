@@ -61,7 +61,7 @@ pub(crate) fn create_user_impl(
     // validate username and signature
     payload.validate()?;
 
-    let new_user = User::new(payload.username.clone(), payload.pubkey()?);
+    let new_user = User::new(&payload.username, payload.pubkey()?);
 
     // create user
     let user: User = diesel::insert_into(users::dsl::users)
