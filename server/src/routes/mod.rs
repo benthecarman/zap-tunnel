@@ -31,7 +31,7 @@ pub async fn index(Extension(state): Extension<State>) -> Html<String> {
         h1 { "Welcome to my Zap Tunnel!" }
         p { "This allows you to receive zaps to a self-custodial wallet without having to setup a web server!" }
         p { "Zap Tunnel works similar to lnproxy but with slightly different trust assumptions." }
-        p { "A Zap Tunnel stores a bunch of amount-less invoices on behalf of you and serves wrapped versions of them when an invoice is requested.\
+        p { "A Zap Tunnel stores a bunch of amount-less invoices on behalf of you and serves wrapped versions of them when an invoice is requested. \
         Because of this you are trusting that the Zap Tunnel will not just give out its own invoices, and that it won't siphon portions of the funds routed through it." }
         p { "Because this is meant to be a replacement for a custodial lightning address, it should be an okay trust assumption" }
         br {}
