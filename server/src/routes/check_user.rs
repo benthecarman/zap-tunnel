@@ -25,8 +25,8 @@ pub(crate) fn check_user_impl(
     // validate username and signature
     CheckUser::validate(SECP256K1, time, pubkey, signature)?;
 
-    let user = User::get_by_pubkey(connection, &pubkey.to_string())
-        .ok_or(anyhow!("No user found with pubkey {}", pubkey.to_string()))?;
+    let user = User::get_by_pubkey(connection, &pubkey)
+        .ok_or(anyhow!("No user found with pubkey {}", pubkey))?;
     let num_invoices: i64 = Invoice::get_num_invoices_available(&user.username, connection)?;
 
     Ok(CheckUser {

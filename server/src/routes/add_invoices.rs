@@ -40,7 +40,8 @@ pub(crate) fn add_invoices_impl(
     payload.validate(SECP256K1)?;
 
     // get username
-    let user = User::get_by_pubkey(connection, &payload.pubkey).ok_or(anyhow!("Invalid pubkey"))?;
+    let user =
+        User::get_by_pubkey(connection, &payload.pubkey()?).ok_or(anyhow!("Invalid pubkey"))?;
     let username = user.username;
 
     let invoices: Vec<Invoice> = payload

@@ -1,6 +1,7 @@
 #[cfg(test)]
 use std::str::FromStr;
 
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -18,7 +19,7 @@ impl User {
     pub fn new(username: &str, pubkey: PublicKey) -> Self {
         Self {
             username: String::from(username),
-            pubkey: pubkey.to_string(),
+            pubkey: pubkey.to_hex(),
         }
     }
 
@@ -34,9 +35,9 @@ impl User {
             .ok()
     }
 
-    pub fn get_by_pubkey(conn: &mut SqliteConnection, pubkey: &str) -> Option<Self> {
+    pub fn get_by_pubkey(conn: &mut SqliteConnection, pubkey: &PublicKey) -> Option<Self> {
         users::table
-            .filter(users::pubkey.eq(pubkey))
+            .filter(users::pubkey.eq(pubkey.to_hex()))
             .first::<Self>(conn)
             .ok()
     }
