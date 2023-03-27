@@ -25,7 +25,7 @@ pub async fn index(Extension(state): Extension<State>) -> Html<String> {
         state.connection_string
     );
 
-    Html(dioxus::ssr::render_lazy(rsx! {
+    Html(dioxus_ssr::render_lazy(rsx! {
         head { title { "Zap Tunnel" } }
         h1 { "Welcome to my Zap Tunnel!" }
         p { "This allows you to receive zaps to a self-custodial wallet without having to setup a web server!" }
