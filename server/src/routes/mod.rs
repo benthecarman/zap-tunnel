@@ -26,6 +26,7 @@ pub async fn index(Extension(state): Extension<State>) -> Html<String> {
     );
 
     Html(dioxus_ssr::render_lazy(rsx! {
+        style { include_str!("../style.css") }
         head { title { "Zap Tunnel" } }
         h1 { "Welcome to my Zap Tunnel!" }
         p { "This allows you to receive zaps to a self-custodial wallet without having to setup a web server!" }
