@@ -3,7 +3,7 @@ use axum::http::StatusCode;
 use axum::{Extension, Json};
 use bitcoin::secp256k1::SECP256K1;
 use bitcoin::Network;
-use diesel::{RunQueryDsl, SqliteConnection};
+use diesel::{Connection, RunQueryDsl, SqliteConnection};
 use lightning_invoice::Currency;
 use lightning_invoice::Invoice as LnInvoice;
 
@@ -39,25 +39,27 @@ pub(crate) fn add_invoices_impl(
     // validate signature
     payload.validate(SECP256K1)?;
 
-    // get username
-    let user =
-        User::get_by_pubkey(connection, &payload.pubkey()?).ok_or(anyhow!("Invalid pubkey"))?;
-    let username = user.username;
+    connection.transaction(|connection| {
+        // get username
+        let user =
+            User::get_by_pubkey(connection, &payload.pubkey()?).ok_or(anyhow!("Invalid pubkey"))?;
+        let username = user.username;
 
-    let invoices: Vec<Invoice> = payload
-        .invoices
-        .iter()
-        .map(|x| Invoice::new(x, Some(&username)))
-        .collect();
+        let invoices: Vec<Invoice> = payload
+            .invoices
+            .iter()
+            .map(|x| Invoice::new(x, Some(&username)))
+            .collect();
 
-    // insert invoices
-    let num_inserted = diesel::insert_into(invoices::dsl::invoices)
-        .values(&invoices)
-        .execute(connection)?;
+        // insert invoices
+        let num_inserted = diesel::insert_into(invoices::dsl::invoices)
+            .values(&invoices)
+            .execute(connection)?;
 
-    println!("Added {} invoices for user {}", num_inserted, username);
+        println!("Added {} invoices for user {}", num_inserted, username);
 
-    Ok(num_inserted)
+        Ok(num_inserted)
+    })
 }
 
 pub async fn add_invoices(
