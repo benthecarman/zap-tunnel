@@ -32,7 +32,7 @@ const RELAYS: [&str; 9] = [
 
 pub async fn handle_zap(
     invoice_hash: Vec<u8>,
-    nostr_keys: Keys,
+    nostr_keys: &Keys,
     db: &mut PooledConnection<ConnectionManager<SqliteConnection>>,
 ) -> anyhow::Result<()> {
     let zap_opt: Option<Zap> = dsl::zaps
@@ -107,10 +107,10 @@ pub async fn handle_zap(
             tags.push(tag);
         }
 
-        let event = EventBuilder::new(Kind::Zap, "", &tags).to_event(&nostr_keys)?;
+        let event = EventBuilder::new(Kind::Zap, "", &tags).to_event(nostr_keys)?;
 
         // Create new client
-        let client = Client::new(&nostr_keys);
+        let client = Client::new(nostr_keys);
         let relays: Vec<(String, Option<SocketAddr>)> =
             RELAYS.into_iter().map(|r| (r.to_string(), None)).collect();
         client.add_relays(relays).await?;
