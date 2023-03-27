@@ -1,3 +1,4 @@
+use bitcoin::Network;
 use clap::Parser;
 
 #[derive(Parser, Debug, Clone)]
@@ -13,9 +14,9 @@ pub struct Config {
     #[clap(default_value_t = 10009, long)]
     /// Port of the GRPC server for lnd
     pub lnd_port: u32,
-    #[clap(default_value_t = String::from("mainnet"), short, long)]
-    /// Network lnd is running on ["mainnet", "testnet", "signet, "simnet, "regtest"]
-    pub network: String,
+    #[clap(default_value_t = Network::Bitcoin, short, long)]
+    /// Network lnd is running on ["bitcoin", "testnet", "signet, "regtest"]
+    pub network: Network,
     #[clap(long)]
     /// Path to tls.cert file for lnd
     pub cert_file: Option<String>,
@@ -49,10 +50,17 @@ pub fn default_cert_file() -> String {
     format!("{}/.lnd/tls.cert", home_directory())
 }
 
-pub fn default_macaroon_file(network: String) -> String {
+pub fn default_macaroon_file(network: Network) -> String {
+    let network_str = match network {
+        Network::Bitcoin => "mainnet",
+        Network::Testnet => "testnet",
+        Network::Signet => "signet",
+        Network::Regtest => "regtest",
+    };
+
     format!(
         "{}/.lnd/data/chain/bitcoin/{}/admin.macaroon",
         home_directory(),
-        network
+        network_str
     )
 }

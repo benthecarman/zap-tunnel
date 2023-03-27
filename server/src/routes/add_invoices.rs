@@ -1,15 +1,36 @@
-use crate::models::invoice::Invoice;
 use anyhow::anyhow;
 use axum::http::StatusCode;
 use axum::{Extension, Json};
 use bitcoin::secp256k1::SECP256K1;
+use bitcoin::Network;
 use diesel::{RunQueryDsl, SqliteConnection};
+use lightning_invoice::Currency;
+use lightning_invoice::Invoice as LnInvoice;
+
 pub use zap_tunnel_client::AddInvoices;
 
+use crate::models::invoice::Invoice;
 use crate::models::schema::*;
 use crate::models::user::User;
 use crate::routes::handle_anyhow_error;
 use crate::State;
+
+fn check_invoices(invoices: &[LnInvoice], network: Network) -> bool {
+    let expected_currency = match network {
+        Network::Bitcoin => Currency::Bitcoin,
+        Network::Testnet => Currency::BitcoinTestnet,
+        Network::Signet => Currency::Signet,
+        Network::Regtest => Currency::Regtest,
+    };
+
+    invoices.iter().all(|inv| {
+        inv.currency() == expected_currency
+            && inv.amount_milli_satoshis().is_none()
+            && !inv.is_expired()
+            && inv.min_final_cltv_expiry_delta() < 333
+            && inv.check_signature().is_ok()
+    })
+}
 
 pub(crate) fn add_invoices_impl(
     payload: AddInvoices,
@@ -42,6 +63,16 @@ pub async fn add_invoices(
     Extension(state): Extension<State>,
     Json(payload): Json<AddInvoices>,
 ) -> Result<Json<usize>, (StatusCode, String)> {
+    if payload.invoices.is_empty() || !check_invoices(&payload.invoices, state.network) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Invalid invoices, must have no amount and be for network: {}",
+                state.network
+            ),
+        ));
+    }
+
     let mut connection = state.db_pool.get().map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

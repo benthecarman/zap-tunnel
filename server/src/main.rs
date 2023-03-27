@@ -5,6 +5,7 @@ use ::nostr::Keys;
 use axum::http::{StatusCode, Uri};
 use axum::routing::{get, post};
 use axum::{Extension, Router};
+use bitcoin::Network;
 use clap::Parser;
 use diesel::connection::SimpleConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
@@ -30,6 +31,7 @@ pub struct State {
     connection_string: String,
     nostr_pubkey: XOnlyPublicKey,
     invoice_client: LndInvoicesClient,
+    network: Network,
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 }
 
@@ -81,6 +83,7 @@ async fn main() -> anyhow::Result<()> {
             .clone(),
         nostr_pubkey: nostr_key.public_key(),
         invoice_client: client.invoices().clone(),
+        network: config.network,
         db_pool: db_pool.clone(),
     };
 
