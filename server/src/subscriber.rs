@@ -160,9 +160,7 @@ async fn handle_accepted_invoice(
                 .into_inner();
 
             if let Some(payment) = stream.message().await.ok().flatten() {
-                let status =
-                    PaymentStatus::from_i32(payment.status).expect("Unknown payment status");
-                if status == PaymentStatus::Succeeded {
+                if let Some(PaymentStatus::Succeeded) = PaymentStatus::from_i32(payment.status) {
                     // success
                     println!("paid invoice: {:?}", ln_invoice.payment_request);
 
@@ -188,7 +186,7 @@ async fn handle_accepted_invoice(
                     // failed or unknown
                     println!(
                         "failed to pay invoice ({}) {}: {}",
-                        status as i32,
+                        payment.status,
                         invoice_hash.to_hex(),
                         payment.failure_reason
                     );
