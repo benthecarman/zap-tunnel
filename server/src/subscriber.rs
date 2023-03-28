@@ -192,6 +192,15 @@ async fn handle_accepted_invoice(
                         invoice_hash.to_hex(),
                         payment.failure_reason
                     );
+
+                    invoice_client
+                        .cancel_invoice(invoicesrpc::CancelInvoiceMsg {
+                            payment_hash: invoice_hash.to_vec(),
+                        })
+                        .await
+                        .expect("Failed to cancel invoice");
+
+                    println!("cancelled invoice: {}", invoice_hash.to_hex());
                 }
             }
         }
