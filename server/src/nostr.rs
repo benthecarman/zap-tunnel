@@ -5,6 +5,7 @@ use bitcoin::hashes::sha256::Hash as Sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::rand::rngs::OsRng;
 use bitcoin::secp256k1::rand::RngCore;
+use bitcoin::secp256k1::SECP256K1;
 use std::net::SocketAddr;
 
 use diesel::r2d2::{ConnectionManager, PooledConnection};
@@ -73,10 +74,7 @@ pub async fn handle_zap(
             .min_final_cltv_expiry_delta(144)
             .build_raw()
             .and_then(|raw| {
-                raw.sign(|hash| {
-                    Ok(bitcoin::secp256k1::Secp256k1::new()
-                        .sign_ecdsa_recoverable(hash, &private_key))
-                })
+                raw.sign(|hash| Ok(SECP256K1.sign_ecdsa_recoverable(hash, &private_key)))
             })?;
 
         let fake_invoice = Invoice::from_signed(raw_invoice)?;
