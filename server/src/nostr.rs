@@ -31,7 +31,7 @@ const RELAYS: [&str; 9] = [
 ];
 
 pub async fn handle_zap(
-    invoice_hash: Vec<u8>,
+    invoice_hash: &Vec<u8>,
     nostr_keys: &Keys,
     db: &mut PooledConnection<ConnectionManager<SqliteConnection>>,
 ) -> anyhow::Result<()> {

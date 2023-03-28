@@ -181,7 +181,7 @@ async fn handle_accepted_invoice(
 
                     // create and broadcast zap if applicable
                     // todo handle errors
-                    handle_zap(invoice_hash, &nostr_key, db)
+                    handle_zap(&invoice_hash, &nostr_key, db)
                         .await
                         .expect("Failed to handle zap");
                 } else {
