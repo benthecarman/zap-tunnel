@@ -116,7 +116,51 @@ mod test {
         assert_eq!(invoice_db.invoice().to_string(), INVOICE_STR);
         assert_eq!(invoice_db.is_paid(), false);
         assert_eq!(invoice_db.expires_at, expiry);
+        assert_eq!(invoice_db.wrapped_expiry, None);
         assert_eq!(invoice_db.username(), Some(test_username));
+
+        teardown_database(&db_name);
+    }
+
+    #[test]
+    fn test_get_next_invoice() {
+        use super::schema::invoices::dsl::*;
+        use super::schema::users::dsl::*;
+        let db_name = gen_tmp_db_name();
+        let conn = &mut create_database(&db_name);
+
+        let test_username: String = String::from("test_user");
+
+        let new_user = User::new(&test_username, PublicKey::from_str(PUB_KEY_STR).unwrap());
+        // create user
+        let size = diesel::insert_into(users::table())
+            .values(&new_user)
+            .execute(conn)
+            .unwrap();
+        assert_eq!(size, 1);
+
+        let inv: LnInvoice = LnInvoice::from_str(INVOICE_STR).unwrap();
+
+        let new_invoice = Invoice::new(&inv, Some(&test_username));
+
+        // create invoice
+        let size = diesel::insert_into(invoices::table())
+            .values(&new_invoice)
+            .execute(conn)
+            .unwrap();
+        assert_eq!(size, 1);
+
+        // fix expiry for test
+        new_invoice.update_expiry(conn).unwrap();
+
+        // get invoice
+        let invoice_db = Invoice::get_next_invoice(&test_username, conn).unwrap();
+
+        assert_eq!(invoice_db.payment_hash(), inv.payment_hash().clone());
+        assert_eq!(invoice_db.invoice().to_string(), INVOICE_STR);
+        assert_eq!(invoice_db.is_paid(), false);
+        assert_eq!(invoice_db.username(), Some(test_username));
+        assert!(invoice_db.wrapped_expiry.is_some());
 
         teardown_database(&db_name);
     }

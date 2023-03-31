@@ -66,7 +66,7 @@ impl Invoice {
         self.wrapped_expiry = Some(wrapped_expiry);
     }
 
-    pub fn get_next_invoice(username: String, conn: &mut SqliteConnection) -> anyhow::Result<Self> {
+    pub fn get_next_invoice(username: &str, conn: &mut SqliteConnection) -> anyhow::Result<Self> {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs() as i64;
@@ -74,13 +74,15 @@ impl Invoice {
         let w_expiry = now + DEFAULT_INVOICE_EXPIRY;
 
         conn.transaction(|conn| {
-            let inv = invoices::table
+            let mut inv = invoices::table
                 .filter(invoices::username.eq(username))
                 .filter(invoices::paid.eq(0))
                 .filter(invoices::wrapped_expiry.is_null())
                 .filter(invoices::expires_at.gt(now))
                 .order(invoices::expires_at.asc())
                 .first::<Self>(conn)?;
+
+            inv.set_wrapped_expiry(w_expiry);
 
             diesel::update(invoices::table)
                 .filter(invoices::payment_hash.eq(&inv.payment_hash))
@@ -137,5 +139,19 @@ impl Invoice {
             .load::<Self>(conn)?;
 
         Ok(invoices)
+    }
+
+    #[cfg(test)]
+    pub fn update_expiry(&self, conn: &mut SqliteConnection) -> anyhow::Result<()> {
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)?
+            .as_secs() as i64;
+
+        diesel::update(invoices::table)
+            .filter(invoices::payment_hash.eq(&self.payment_hash))
+            .set(invoices::expires_at.eq(now + 500))
+            .execute(conn)?;
+
+        Ok(())
     }
 }

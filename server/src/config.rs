@@ -65,6 +65,7 @@ impl Config {
         1_000.max(self.base_fee)
     }
 
+    #[cfg(test)]
     pub(crate) fn dummy() -> Self {
         Self {
             nsec: "nsec1f77xgphdtw7g9qdryer6md8wv4nxvj83vweaejz8e8g7zgr2wttsxkmmfm".to_string(),
