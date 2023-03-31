@@ -1,11 +1,8 @@
 use std::time::Duration;
 
-use ::nostr::prelude::{FromSkStr, XOnlyPublicKey};
-use ::nostr::Keys;
 use axum::http::{StatusCode, Uri};
 use axum::routing::{get, post};
 use axum::{Extension, Router};
-use bitcoin::Network;
 use clap::Parser;
 use diesel::connection::SimpleConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
@@ -29,9 +26,8 @@ mod subscriber;
 #[derive(Clone)]
 pub struct State {
     connection_string: String,
-    nostr_pubkey: XOnlyPublicKey,
+    config: Config,
     invoice_client: LndInvoicesClient,
-    network: Network,
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 }
 
@@ -39,17 +35,14 @@ pub struct State {
 async fn main() -> anyhow::Result<()> {
     let config: Config = Config::parse();
 
-    let nostr_key = Keys::from_sk_str(&config.nsec).expect("Failed to parse nsec key");
-
-    let macaroon_file = config
-        .macaroon_file
-        .unwrap_or_else(|| default_macaroon_file(config.network));
-    let cert_file = config.cert_file.unwrap_or_else(default_cert_file);
-
-    let mut client =
-        tonic_openssl_lnd::connect(config.lnd_host, config.lnd_port, cert_file, macaroon_file)
-            .await
-            .expect("failed to connect");
+    let mut client = tonic_openssl_lnd::connect(
+        config.lnd_host.clone(),
+        config.lnd_port,
+        config.cert_file(),
+        config.macaroon_file(),
+    )
+    .await
+    .expect("failed to connect");
 
     let mut ln_client = client.lightning().clone();
     let lnd_info: GetInfoResponse = ln_client
@@ -59,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
         .into_inner();
 
     // DB management
-    let manager = ConnectionManager::<SqliteConnection>::new(config.db_path);
+    let manager = ConnectionManager::<SqliteConnection>::new(&config.db_path);
     let db_pool = Pool::builder()
         .max_size(16)
         .connection_customizer(Box::new(ConnectionOptions {
@@ -81,9 +74,8 @@ async fn main() -> anyhow::Result<()> {
             .first()
             .expect("Lightning node needs a public uri")
             .clone(),
-        nostr_pubkey: nostr_key.public_key(),
+        config: config.clone(),
         invoice_client: client.invoices().clone(),
-        network: config.network,
         db_pool: db_pool.clone(),
     };
 
@@ -96,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
         lightning_client,
         router_client,
         invoice_client,
-        nostr_key,
+        config.nostr_keys(),
         db_pool,
     ));
 

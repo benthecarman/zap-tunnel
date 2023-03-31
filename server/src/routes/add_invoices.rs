@@ -66,12 +66,12 @@ pub async fn add_invoices(
     Extension(state): Extension<State>,
     Json(payload): Json<AddInvoices>,
 ) -> Result<Json<usize>, (StatusCode, String)> {
-    if payload.invoices.is_empty() || !check_invoices(&payload.invoices, state.network) {
+    if payload.invoices.is_empty() || !check_invoices(&payload.invoices, state.config.network) {
         return Err((
             StatusCode::BAD_REQUEST,
             format!(
                 "Invalid invoices, must have no amount and be for network: {}",
-                state.network
+                state.config.network
             ),
         ));
     }

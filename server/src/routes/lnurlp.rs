@@ -61,7 +61,7 @@ pub async fn get_lnurlp(
         )
     })?;
 
-    match get_lnurlp_impl(username, state.nostr_pubkey, &mut connection) {
+    match get_lnurlp_impl(username, state.config.public_key(), &mut connection) {
         Some(res) => Ok(Json(res)),
         None => Err((StatusCode::NOT_FOUND, String::from("{\"status\":\"ERROR\",\"reason\":\"The user you're searching for could not be found.\"}"))),
     }
