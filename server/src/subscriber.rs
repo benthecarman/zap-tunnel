@@ -141,10 +141,15 @@ async fn handle_accepted_invoice(
 
         // only pay invoice if we have enough time
         if let Some(timeout_seconds) = timeout_seconds {
-            // todo fee limits
+            let total_fee =
+                config.base_fee as f64 + (config.fee_rate / 100.0) * ln_invoice.value_msat as f64;
+            let total_fee = total_fee as i64;
+
+            let amt_msat: i64 = ln_invoice.value_msat - total_fee;
             let req = tonic_openssl_lnd::routerrpc::SendPaymentRequest {
                 payment_request: user_invoice.invoice().to_string(),
-                amt_msat: ln_invoice.value_msat,
+                amt_msat,
+                fee_limit_msat: total_fee,
                 timeout_seconds: timeout_seconds as i32,
                 no_inflight_updates: true,
                 allow_self_payment: false,

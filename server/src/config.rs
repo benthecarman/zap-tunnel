@@ -10,6 +10,12 @@ pub struct Config {
     #[clap(long)]
     /// Nostr Private Key, used to sign zap requests, encoded as hex or bech32
     nsec: String,
+    /// Base fee, in millisatoshis, for routing payments
+    #[clap(default_value_t = 1000, long)]
+    pub base_fee: u64,
+    /// Fee rate in percentage of payment amount, for routing payments
+    #[clap(default_value_t = 1.0, long)]
+    pub fee_rate: f64,
     #[clap(default_value_t = String::from("127.0.0.1"), long)]
     /// Host of the GRPC server for lnd
     pub lnd_host: String,
@@ -53,6 +59,10 @@ impl Config {
 
     pub fn cert_file(&self) -> String {
         self.cert_file.clone().unwrap_or_else(default_cert_file)
+    }
+
+    pub fn min_sendable(&self) -> u64 {
+        1_000.max(self.base_fee)
     }
 }
 

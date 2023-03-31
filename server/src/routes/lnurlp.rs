@@ -2,6 +2,7 @@ use anyhow::anyhow;
 use std::collections::HashMap;
 use std::str::FromStr;
 
+use crate::config::Config;
 use crate::models::invoice::{Invoice, DEFAULT_INVOICE_EXPIRY};
 use crate::models::zap::Zap;
 use axum::extract::{Path, Query};
@@ -12,7 +13,6 @@ use diesel::SqliteConnection;
 use lightning_invoice::Invoice as LnInvoice;
 use lnurl::pay::{LnURLPayInvoice, PayResponse};
 use lnurl::Tag;
-use nostr::key::XOnlyPublicKey;
 use nostr::Event;
 use tonic_openssl_lnd::invoicesrpc::AddHoldInvoiceRequest;
 use tonic_openssl_lnd::LndInvoicesClient;
@@ -29,7 +29,7 @@ fn calculate_metadata(username: &str) -> String {
 
 pub(crate) fn get_lnurlp_impl(
     username: String,
-    nostr_pubkey: XOnlyPublicKey,
+    config: &Config,
     connection: &mut SqliteConnection,
 ) -> Option<PayResponse> {
     let metadata = calculate_metadata(&username);
@@ -37,7 +37,7 @@ pub(crate) fn get_lnurlp_impl(
     // todo change callback to use correct host and https
     let callback = format!("https://zaptunnel.com/lnurlp/{username}");
     let max_sendable = 100_000_000;
-    let min_sendable = 1_000;
+    let min_sendable = config.min_sendable();
 
     Some(PayResponse {
         callback,
@@ -46,7 +46,7 @@ pub(crate) fn get_lnurlp_impl(
         tag: Tag::PayRequest,
         metadata,
         allows_nostr: Some(true),
-        nostr_pubkey: Some(nostr_pubkey),
+        nostr_pubkey: Some(config.public_key()),
     })
 }
 
@@ -61,7 +61,7 @@ pub async fn get_lnurlp(
         )
     })?;
 
-    match get_lnurlp_impl(username, state.config.public_key(), &mut connection) {
+    match get_lnurlp_impl(username, &state.config, &mut connection) {
         Some(res) => Ok(Json(res)),
         None => Err((StatusCode::NOT_FOUND, String::from("{\"status\":\"ERROR\",\"reason\":\"The user you're searching for could not be found.\"}"))),
     }
@@ -72,9 +72,10 @@ pub(crate) async fn get_lnurl_invoice_impl(
     amount_msats: u64,
     zap_request: Option<Event>,
     invoice_client: &LndInvoicesClient,
+    config: &Config,
     connection: &mut SqliteConnection,
 ) -> anyhow::Result<Option<LnInvoice>> {
-    if amount_msats < 1_000 {
+    if amount_msats <= config.min_sendable() {
         return Err(anyhow!("Amount too small"));
     }
 
@@ -157,6 +158,7 @@ pub async fn get_lnurl_invoice(
                 amount_msats,
                 zap_request,
                 &state.invoice_client,
+                &state.config,
                 &mut connection,
             )
             .await;
