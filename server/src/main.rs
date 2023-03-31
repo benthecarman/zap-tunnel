@@ -83,6 +83,14 @@ async fn main() -> anyhow::Result<()> {
     let router_client = client.router().clone();
     let invoice_client = client.invoices().clone();
 
+    start_active_invoice_subscriptions(
+        router_client.clone(),
+        invoice_client.clone(),
+        config.clone(),
+        db_pool.clone(),
+    )
+    .await?;
+
     // Invoice event stream
     spawn(start_invoice_subscription(
         lightning_client,

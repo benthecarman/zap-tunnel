@@ -13,6 +13,45 @@ use crate::models::invoice::Invoice;
 use crate::models::schema::invoices::*;
 use crate::nostr::handle_zap;
 
+pub async fn start_active_invoice_subscriptions(
+    router: LndRouterClient,
+    invoice_client: LndInvoicesClient,
+    config: Config,
+    db_pool: Pool<ConnectionManager<SqliteConnection>>,
+) -> anyhow::Result<()> {
+    let db = &mut db_pool.get().expect("Failed to get db connection");
+
+    let active_invoices = Invoice::get_active_invoices(db)?;
+
+    println!(
+        "Starting active invoice subscriptions: {:?}",
+        active_invoices.len()
+    );
+
+    for inv in active_invoices.iter() {
+        let r_hash = inv.payment_hash().to_vec();
+        let router_clone = router.clone();
+        let invoice_client_clone = invoice_client.clone();
+        let config_clone = config.clone();
+        let db_pool_clone = db_pool.clone();
+
+        // Use tokio::spawn instead of tokio::task::spawn
+        // to avoid borrowing the variables beyond their lifetime.
+        tokio::spawn(async move {
+            handle_open_hodl_invoice(
+                r_hash,
+                router_clone,
+                invoice_client_clone,
+                &config_clone,
+                db_pool_clone,
+            )
+            .await;
+        });
+    }
+
+    Ok(())
+}
+
 pub async fn start_invoice_subscription(
     mut lnd: LndLightningClient,
     router: LndRouterClient,
@@ -38,7 +77,7 @@ pub async fn start_invoice_subscription(
             Some(InvoiceState::Open) => {
                 if ln_invoice.r_preimage.is_empty() {
                     handle_open_hodl_invoice(
-                        ln_invoice,
+                        ln_invoice.r_hash,
                         router.clone(),
                         invoice_client.clone(),
                         &config,
@@ -63,15 +102,15 @@ pub async fn start_invoice_subscription(
 }
 
 async fn handle_open_hodl_invoice(
-    inv: lnrpc::Invoice,
+    r_hash: Vec<u8>,
     router: LndRouterClient,
     mut invoice_client: LndInvoicesClient,
     config: &Config,
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 ) {
-    println!("got open hodl invoice: {:?}", inv.payment_request);
+    println!("got open hodl invoice: {}", r_hash.to_hex());
 
-    let req = SubscribeSingleInvoiceRequest { r_hash: inv.r_hash };
+    let req = SubscribeSingleInvoiceRequest { r_hash };
     let mut invoice_stream = invoice_client
         .subscribe_single_invoice(req)
         .await

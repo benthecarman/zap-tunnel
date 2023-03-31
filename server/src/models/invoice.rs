@@ -8,7 +8,7 @@ use lightning_invoice::Invoice as LnInvoice;
 
 use super::schema::invoices;
 
-#[derive(Queryable, AsChangeset, Insertable, Debug, Clone, PartialEq)]
+#[derive(Queryable, AsChangeset, Insertable, Identifiable, Debug, Clone, PartialEq)]
 #[diesel(primary_key(payment_hash))]
 pub struct Invoice {
     payment_hash: String,
@@ -62,15 +62,19 @@ impl Invoice {
         self.paid = 1;
     }
 
+    pub fn set_wrapped_expiry(&mut self, wrapped_expiry: i64) {
+        self.wrapped_expiry = Some(wrapped_expiry);
+    }
+
     pub fn get_next_invoice(username: String, conn: &mut SqliteConnection) -> anyhow::Result<Self> {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs() as i64;
 
-        let wrapped_expiry = now + DEFAULT_INVOICE_EXPIRY;
+        let w_expiry = now + DEFAULT_INVOICE_EXPIRY;
 
         conn.transaction(|conn| {
-            let invoice = invoices::table
+            let inv = invoices::table
                 .filter(invoices::username.eq(username))
                 .filter(invoices::paid.eq(0))
                 .filter(invoices::wrapped_expiry.is_null())
@@ -78,13 +82,12 @@ impl Invoice {
                 .order(invoices::expires_at.asc())
                 .first::<Self>(conn)?;
 
-            diesel::update(
-                invoices::table.filter(invoices::payment_hash.eq(&invoice.payment_hash)),
-            )
-            .set(invoices::wrapped_expiry.eq(wrapped_expiry))
-            .execute(conn)?;
+            diesel::update(invoices::table)
+                .filter(invoices::payment_hash.eq(&inv.payment_hash))
+                .set(invoices::wrapped_expiry.eq(w_expiry))
+                .execute(conn)?;
 
-            Ok(invoice)
+            Ok(inv)
         })
     }
 
@@ -120,5 +123,19 @@ impl Invoice {
             .expect("Error counting invoices");
 
         Ok(count)
+    }
+
+    pub fn get_active_invoices(conn: &mut SqliteConnection) -> anyhow::Result<Vec<Self>> {
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)?
+            .as_secs() as i64;
+
+        let invoices = invoices::table
+            .filter(invoices::paid.eq(0))
+            .filter(invoices::wrapped_expiry.is_not_null())
+            .filter(invoices::wrapped_expiry.gt(now))
+            .load::<Self>(conn)?;
+
+        Ok(invoices)
     }
 }

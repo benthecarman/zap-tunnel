@@ -94,7 +94,10 @@ pub(crate) async fn get_lnurl_invoice_impl(
     };
 
     let invoice_db = match Invoice::get_next_invoice(username, connection) {
-        Err(_) => return Ok(None),
+        Err(e) => {
+            println!("Error getting invoice: {}", e);
+            return Ok(None);
+        }
         Ok(db) => db,
     };
 
