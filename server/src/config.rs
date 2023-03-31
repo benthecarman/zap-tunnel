@@ -64,6 +64,22 @@ impl Config {
     pub fn min_sendable(&self) -> u64 {
         1_000.max(self.base_fee)
     }
+
+    pub(crate) fn dummy() -> Self {
+        Self {
+            nsec: "nsec1f77xgphdtw7g9qdryer6md8wv4nxvj83vweaejz8e8g7zgr2wttsxkmmfm".to_string(),
+            base_fee: 1000,
+            fee_rate: 1.0,
+            lnd_host: "127.0.0.1".to_string(),
+            lnd_port: 10009,
+            network: Network::Regtest,
+            cert_file: None,
+            macaroon_file: None,
+            db_path: "db.sqlite".to_string(),
+            bind: "0.0.0.0".to_string(),
+            port: 3000,
+        }
+    }
 }
 
 fn home_directory() -> String {

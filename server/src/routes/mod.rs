@@ -129,9 +129,9 @@ mod test {
         assert_eq!(user.username, username);
         assert_eq!(user.pubkey(), pubkey);
 
-        let lnurlp =
-            super::lnurlp::get_lnurlp_impl(user.username, pubkey.x_only_public_key().0, conn)
-                .unwrap();
+        let config = crate::config::Config::dummy();
+
+        let lnurlp = super::lnurlp::get_lnurlp_impl(user.username, &config, conn).unwrap();
 
         assert_eq!(lnurlp.allows_nostr, Some(true));
         assert!(lnurlp.callback.len() > 1);
