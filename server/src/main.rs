@@ -88,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
         lightning_client,
         router_client,
         invoice_client,
-        config.nostr_keys(),
+        config.clone(),
         db_pool,
     ));
 

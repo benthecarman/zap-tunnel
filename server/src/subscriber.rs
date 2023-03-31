@@ -2,13 +2,13 @@ use bitcoin::hashes::hex::{FromHex, ToHex};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SqliteConnection};
 use lnrpc::payment::PaymentStatus;
-use nostr::Keys;
 use tonic_openssl_lnd::invoicesrpc::SubscribeSingleInvoiceRequest;
 use tonic_openssl_lnd::lnrpc::invoice::InvoiceState;
 use tonic_openssl_lnd::{
     invoicesrpc, lnrpc, LndInvoicesClient, LndLightningClient, LndRouterClient,
 };
 
+use crate::config::Config;
 use crate::models::invoice::Invoice;
 use crate::models::schema::invoices::*;
 use crate::nostr::handle_zap;
@@ -17,7 +17,7 @@ pub async fn start_invoice_subscription(
     mut lnd: LndLightningClient,
     router: LndRouterClient,
     invoice_client: LndInvoicesClient,
-    nostr_key: Keys,
+    config: Config,
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 ) {
     println!("Starting invoice subscription");
@@ -41,7 +41,7 @@ pub async fn start_invoice_subscription(
                         ln_invoice,
                         router.clone(),
                         invoice_client.clone(),
-                        nostr_key.clone(),
+                        &config,
                         db_pool.clone(),
                     )
                     .await
@@ -52,7 +52,7 @@ pub async fn start_invoice_subscription(
                     ln_invoice,
                     router.clone(),
                     invoice_client.clone(),
-                    nostr_key.clone(),
+                    &config,
                     db_pool.clone(),
                 )
                 .await
@@ -66,7 +66,7 @@ async fn handle_open_hodl_invoice(
     inv: lnrpc::Invoice,
     router: LndRouterClient,
     mut invoice_client: LndInvoicesClient,
-    nostr_key: Keys,
+    config: &Config,
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 ) {
     println!("got open hodl invoice: {:?}", inv.payment_request);
@@ -88,7 +88,7 @@ async fn handle_open_hodl_invoice(
                 ln_invoice,
                 router.clone(),
                 invoice_client.clone(),
-                nostr_key.clone(),
+                config,
                 db_pool.clone(),
             )
             .await
@@ -100,7 +100,7 @@ async fn handle_accepted_invoice(
     ln_invoice: lnrpc::Invoice,
     mut router: LndRouterClient,
     mut invoice_client: LndInvoicesClient,
-    nostr_key: Keys,
+    config: &Config,
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 ) {
     println!("got accepted invoice: {:?}", ln_invoice.payment_request);
@@ -179,7 +179,7 @@ async fn handle_accepted_invoice(
 
                     // create and broadcast zap if applicable
                     // todo handle errors
-                    handle_zap(&invoice_hash, &nostr_key, db)
+                    handle_zap(&invoice_hash, &config.nostr_keys(), db)
                         .await
                         .expect("Failed to handle zap");
                 } else {
