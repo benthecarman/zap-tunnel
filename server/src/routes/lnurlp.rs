@@ -132,7 +132,7 @@ pub async fn get_lnurl_invoice(
 ) -> Result<Json<LnURLPayInvoice>, (StatusCode, String)> {
     match params.get("amount").and_then(|a| a.parse::<u64>().ok()) {
         None => Err((
-            StatusCode::NOT_FOUND,
+            StatusCode::BAD_REQUEST,
             String::from("{\"status\":\"ERROR\",\"reason\":\"Missing amount parameter.\"}"),
         )),
         Some(amount_msats) => {
@@ -140,7 +140,7 @@ pub async fn get_lnurl_invoice(
                 || Ok(None),
                 |event_str| {
                     Event::from_json(event_str)
-                        .map_err(|_| (StatusCode::NOT_FOUND, String::from("Invalid zap request")))
+                        .map_err(|_| (StatusCode::BAD_REQUEST, String::from("Invalid zap request")))
                         .map(Some)
                 },
             )?;
