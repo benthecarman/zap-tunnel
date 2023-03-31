@@ -12,7 +12,7 @@ use super::schema::invoices;
 #[diesel(primary_key(payment_hash))]
 pub struct Invoice {
     payment_hash: String,
-    invoice: String,
+    pub invoice: String,
     pub expires_at: i64,
     pub wrapped_expiry: Option<i64>,
     paid: i32,

@@ -147,7 +147,7 @@ async fn handle_accepted_invoice(
 
             let amt_msat: i64 = ln_invoice.value_msat - total_fee;
             let req = tonic_openssl_lnd::routerrpc::SendPaymentRequest {
-                payment_request: user_invoice.invoice().to_string(),
+                payment_request: user_invoice.invoice,
                 amt_msat,
                 fee_limit_msat: total_fee,
                 timeout_seconds: timeout_seconds as i32,
