@@ -20,7 +20,7 @@ pub async fn start_active_invoice_subscriptions(
     config: Config,
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 ) -> anyhow::Result<()> {
-    let db = &mut db_pool.get().expect("Failed to get db connection");
+    let db = &mut db_pool.get()?;
 
     let active_invoices = Invoice::get_active_invoices(db)?;
 
