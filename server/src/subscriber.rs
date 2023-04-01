@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use bitcoin::hashes::hex::{FromHex, ToHex};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SqliteConnection};
@@ -137,14 +138,48 @@ async fn handle_open_hodl_invoice(
 
 async fn handle_accepted_invoice(
     ln_invoice: lnrpc::Invoice,
-    mut router: LndRouterClient,
+    router: LndRouterClient,
     mut invoice_client: LndInvoicesClient,
     config: &Config,
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 ) {
+    let result = handle_accepted_invoice_impl(
+        ln_invoice.clone(),
+        router,
+        invoice_client.clone(),
+        config,
+        db_pool,
+    )
+    .await;
+
+    // Cancel invoice if there was an error
+    // otherwise the invoice will stay in the accepted state
+    // and cause a stuck payment.
+    if let Err(e) = result {
+        println!("Error handling accepted invoice: {:?}", e);
+        let invoice_hash: Vec<u8> = ln_invoice.r_hash;
+
+        invoice_client
+            .cancel_invoice(invoicesrpc::CancelInvoiceMsg {
+                payment_hash: invoice_hash.to_vec(),
+            })
+            .await
+            .expect("Failed to cancel invoice");
+
+        println!("cancelled invoice: {}", invoice_hash.to_hex());
+    }
+}
+
+async fn handle_accepted_invoice_impl(
+    ln_invoice: lnrpc::Invoice,
+    mut router: LndRouterClient,
+    mut invoice_client: LndInvoicesClient,
+    config: &Config,
+    db_pool: Pool<ConnectionManager<SqliteConnection>>,
+) -> anyhow::Result<()> {
     println!("got accepted invoice: {:?}", ln_invoice.payment_request);
 
-    let db = &mut db_pool.get().expect("Failed to get db connection");
+    let db = &mut db_pool.get()?;
 
     let invoice_hash: Vec<u8> = ln_invoice.r_hash;
 
@@ -197,25 +232,19 @@ async fn handle_accepted_invoice(
                 ..Default::default()
             };
 
-            let mut stream = router
-                .send_payment_v2(req)
-                .await
-                .expect("Failed to send payment")
-                .into_inner();
+            let mut stream = router.send_payment_v2(req).await?.into_inner();
 
             if let Some(payment) = stream.message().await.ok().flatten() {
                 if let Some(PaymentStatus::Succeeded) = PaymentStatus::from_i32(payment.status) {
                     // success
                     println!("paid invoice: {:?}", ln_invoice.payment_request);
 
-                    let preimage: Vec<u8> = Vec::from_hex(payment.payment_preimage.as_str())
-                        .expect("Failed to parse preimage");
+                    let preimage: Vec<u8> = Vec::from_hex(payment.payment_preimage.as_str())?;
 
                     // settle invoice
                     invoice_client
                         .settle_invoice(invoicesrpc::SettleInvoiceMsg { preimage })
-                        .await
-                        .expect("Failed to settle invoice");
+                        .await?;
 
                     // mark invoice as paid
                     Invoice::mark_invoice_paid(&invoice_hash.to_hex(), db)
@@ -226,6 +255,8 @@ async fn handle_accepted_invoice(
                     handle_zap(&invoice_hash, &config.nostr_keys(), db)
                         .await
                         .expect("Failed to handle zap");
+
+                    return Ok(());
                 } else {
                     // failed or unknown
                     println!(
@@ -239,12 +270,14 @@ async fn handle_accepted_invoice(
                         .cancel_invoice(invoicesrpc::CancelInvoiceMsg {
                             payment_hash: invoice_hash.to_vec(),
                         })
-                        .await
-                        .expect("Failed to cancel invoice");
+                        .await?;
 
                     println!("cancelled invoice: {}", invoice_hash.to_hex());
+                    return Ok(());
                 }
             }
         }
     }
+
+    Err(anyhow!("Failed to handle invoice"))
 }
