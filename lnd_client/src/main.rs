@@ -1,11 +1,13 @@
 use std::str::FromStr;
 use std::time::SystemTime;
+use std::{thread, time};
 
 use bitcoin::hashes::{sha256, Hash, HashEngine, Hmac, HmacEngine};
-use bitcoin::secp256k1::{Secp256k1, SecretKey};
+use bitcoin::secp256k1::{All, Secp256k1, SecretKey};
 use clap::Parser;
 use lightning_invoice::Invoice as LnInvoice;
 use tonic_openssl_lnd::lnrpc::{Invoice, SignMessageRequest};
+use tonic_openssl_lnd::LndLightningClient;
 
 use zap_tunnel_client::blocking::*;
 use zap_tunnel_client::Builder;
@@ -56,17 +58,38 @@ async fn main() -> anyhow::Result<()> {
     let bytes = Hmac::<sha256::Hash>::from_engine(engine).into_inner();
     let key = SecretKey::from_slice(&bytes)?;
 
+    let context = Secp256k1::new();
+
+    loop {
+        check_status(
+            &context,
+            &key,
+            config.invoice_cache,
+            lnd_client.lightning().clone(),
+            client.clone(),
+        )
+        .await?;
+        thread::sleep(time::Duration::from_secs(60));
+    }
+}
+
+async fn check_status(
+    context: &Secp256k1<All>,
+    key: &SecretKey,
+    cache_size: usize,
+    lnd_client: LndLightningClient,
+    client: BlockingClient,
+) -> anyhow::Result<usize> {
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
 
-    let context = Secp256k1::new();
-
-    let invoices_remaining = match client.check_user(&context, now, &key) {
+    let invoices_remaining = match client.check_user(context, now, &key) {
         Ok(check_user) => check_user.invoices_remaining,
         Err(_) => {
+            // todo remove creating a test user and add actual create user flow
             let _ = client
-                .create_user(&context, "test_user", &key)
+                .create_user(context, "test_user", &key)
                 .expect("failed to create user");
             0
         }
@@ -74,26 +97,29 @@ async fn main() -> anyhow::Result<()> {
 
     println!("Invoices remaining: {}", invoices_remaining);
 
-    if invoices_remaining < 5 {
-        let inv = Invoice {
-            memo: "zap tunnel".to_string(),
-            expiry: 31536000, // ~1 year
-            private: true,
-            ..Default::default()
-        };
-        let invoice = lnd_client
-            .lightning()
-            .clone()
-            .add_invoice(inv)
-            .await?
-            .into_inner();
+    let need_invoices = cache_size - invoices_remaining as usize;
 
-        let ln_invoice = LnInvoice::from_str(&invoice.payment_request)?;
+    if need_invoices > 0 {
+        let mut invoices: Vec<LnInvoice> = vec![];
+        for _ in 0..need_invoices {
+            let inv = Invoice {
+                memo: "zap tunnel".to_string(),
+                expiry: 31536000, // ~1 year
+                private: true,
+                ..Default::default()
+            };
+            let invoice = lnd_client.clone().add_invoice(inv).await?.into_inner();
 
-        let num = client.add_invoices(&context, &key, &[ln_invoice])?;
+            let ln_invoice = LnInvoice::from_str(&invoice.payment_request)?;
 
+            invoices.push(ln_invoice);
+        }
+
+        let num = client.add_invoices(context, key, invoices.as_slice())?;
         println!("Added {} invoices", num);
+
+        return Ok(num);
     }
 
-    Ok(())
+    Ok(0)
 }
