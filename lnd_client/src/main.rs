@@ -84,12 +84,12 @@ async fn check_status(
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
 
-    let invoices_remaining = match client.check_user(context, now, &key) {
+    let invoices_remaining = match client.check_user(context, now, key) {
         Ok(check_user) => check_user.invoices_remaining,
         Err(_) => {
             // todo remove creating a test user and add actual create user flow
             let _ = client
-                .create_user(context, "test_user", &key)
+                .create_user(context, "test_user", key)
                 .expect("failed to create user");
             0
         }
