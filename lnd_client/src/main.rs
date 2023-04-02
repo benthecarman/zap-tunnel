@@ -97,7 +97,7 @@ async fn check_status(
 
     println!("Invoices remaining: {}", invoices_remaining);
 
-    let need_invoices = cache_size - invoices_remaining as usize;
+    let need_invoices = cache_size as i64 - invoices_remaining as i64;
 
     if need_invoices > 0 {
         let mut invoices: Vec<LnInvoice> = vec![];
