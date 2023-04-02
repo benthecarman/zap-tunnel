@@ -10,12 +10,12 @@ CREATE TABLE invoices
     invoice        TEXT UNIQUE      NOT NULL,
     expires_at     BIGINT           NOT NULL,
     wrapped_expiry BIGINT,
-    paid           INTEGER          NOT NULL,
+    fees_earned    BIGINT,
     username       TEXT,
     FOREIGN KEY (username) REFERENCES users (username)
 );
 
-create index invoices_paid_idx on invoices (paid);
+create index invoices_fees_earned_idx on invoices (fees_earned);
 create index invoices_username_idx on invoices (username);
 
 CREATE TABLE zaps

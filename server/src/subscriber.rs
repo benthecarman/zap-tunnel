@@ -185,7 +185,7 @@ async fn handle_accepted_invoice_impl(
 
     let invoice_opt: Option<Invoice> = dsl::invoices
         .filter(payment_hash.eq(invoice_hash.to_hex()))
-        .filter(paid.eq(0))
+        .filter(fees_earned.is_null())
         .first::<Invoice>(db)
         .optional()
         .ok()
@@ -246,8 +246,10 @@ async fn handle_accepted_invoice_impl(
                         .settle_invoice(invoicesrpc::SettleInvoiceMsg { preimage })
                         .await?;
 
+                    let fees_earned_msats = total_fee - payment.fee_msat;
+
                     // mark invoice as paid
-                    Invoice::mark_invoice_paid(&invoice_hash.to_hex(), db)
+                    Invoice::mark_invoice_paid(&invoice_hash.to_hex(), fees_earned_msats, db)
                         .expect("Failed to mark invoice as paid");
 
                     // create and broadcast zap if applicable

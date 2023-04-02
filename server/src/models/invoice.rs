@@ -15,7 +15,7 @@ pub struct Invoice {
     pub invoice: String,
     pub expires_at: i64,
     pub wrapped_expiry: Option<i64>,
-    paid: i32,
+    fees_earned: Option<i64>,
     username: Option<String>,
 }
 
@@ -33,7 +33,7 @@ impl Invoice {
             invoice: invoice.to_string(),
             expires_at,
             wrapped_expiry: None,
-            paid: 0,
+            fees_earned: None,
             username: username.map(String::from),
         }
     }
@@ -51,15 +51,11 @@ impl Invoice {
     }
 
     pub fn is_paid(&self) -> bool {
-        self.paid != 0
+        self.fees_earned.is_some()
     }
 
     pub fn username(&self) -> Option<String> {
         self.username.clone()
-    }
-
-    pub fn set_paid(&mut self) {
-        self.paid = 1;
     }
 
     pub fn set_wrapped_expiry(&mut self, wrapped_expiry: i64) {
@@ -76,7 +72,7 @@ impl Invoice {
         conn.transaction(|conn| {
             let mut inv = invoices::table
                 .filter(invoices::username.eq(username))
-                .filter(invoices::paid.eq(0))
+                .filter(invoices::fees_earned.is_null())
                 .filter(invoices::wrapped_expiry.is_null())
                 .filter(invoices::expires_at.gt(now))
                 .order(invoices::expires_at.asc())
@@ -95,10 +91,11 @@ impl Invoice {
 
     pub fn mark_invoice_paid(
         payment_hash: &str,
+        fees_earned: i64,
         conn: &mut SqliteConnection,
     ) -> anyhow::Result<()> {
         diesel::update(invoices::table.filter(invoices::payment_hash.eq(&payment_hash)))
-            .set(invoices::paid.eq(1))
+            .set(invoices::fees_earned.eq(Some(fees_earned)))
             .execute(conn)?;
 
         Ok(())
@@ -117,7 +114,7 @@ impl Invoice {
             .filter(
                 invoices::username
                     .eq(username)
-                    .and(invoices::paid.eq(0))
+                    .and(invoices::fees_earned.is_null())
                     .and(invoices::wrapped_expiry.is_null())
                     .and(invoices::expires_at.gt(now)),
             )
@@ -133,7 +130,7 @@ impl Invoice {
             .as_secs() as i64;
 
         let invoices = invoices::table
-            .filter(invoices::paid.eq(0))
+            .filter(invoices::fees_earned.is_null())
             .filter(invoices::wrapped_expiry.is_not_null())
             .filter(invoices::wrapped_expiry.gt(now))
             .load::<Self>(conn)?;
