@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::time::Duration;
 
 use axum::http::{StatusCode, Uri};
@@ -50,6 +51,11 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("Failed to get lnd info")
         .into_inner();
+
+    // Create the database if it doesn't exist
+    if let Some(parent_dir) = PathBuf::from(&config.db_path).parent() {
+        std::fs::create_dir_all(parent_dir)?;
+    };
 
     // DB management
     let manager = ConnectionManager::<SqliteConnection>::new(&config.db_path);
