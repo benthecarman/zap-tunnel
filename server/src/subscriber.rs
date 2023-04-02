@@ -177,7 +177,7 @@ async fn handle_accepted_invoice_impl(
     config: &Config,
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 ) -> anyhow::Result<()> {
-    println!("got accepted invoice: {:?}", ln_invoice.payment_request);
+    println!("got accepted invoice: {}", ln_invoice.r_hash.to_hex());
 
     let db = &mut db_pool.get()?;
 
@@ -237,7 +237,7 @@ async fn handle_accepted_invoice_impl(
             if let Some(payment) = stream.message().await.ok().flatten() {
                 if let Some(PaymentStatus::Succeeded) = PaymentStatus::from_i32(payment.status) {
                     // success
-                    println!("paid invoice: {}", ln_invoice.payment_request);
+                    println!("paid invoice: {}", invoice_hash.to_hex());
 
                     let preimage: Vec<u8> = Vec::from_hex(payment.payment_preimage.as_str())?;
 
