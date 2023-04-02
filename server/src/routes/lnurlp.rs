@@ -19,11 +19,10 @@ use tonic_openssl_lnd::LndInvoicesClient;
 
 use crate::State;
 
-fn calculate_metadata(username: &str) -> String {
-    // todo change identifier to use correct host
+fn calculate_metadata(username: &str, public_url: &str) -> String {
     format!(
-        "[[\"text/plain\", \"Pay to {}\"], [\"text/identifier\", \"{}@zaptunnel.com\"]]",
-        username, username
+        "[[\"text/plain\", \"Pay to {}\"], [\"text/identifier\", \"{}@{}\"]]",
+        username, username, public_url
     )
 }
 
@@ -32,10 +31,9 @@ pub(crate) fn get_lnurlp_impl(
     config: &Config,
     connection: &mut SqliteConnection,
 ) -> Option<PayResponse> {
-    let metadata = calculate_metadata(&username);
+    let metadata = calculate_metadata(&username, &config.public_url);
     let _ = crate::models::user::User::get_by_username(connection, &username)?;
-    // todo change callback to use correct host and https
-    let callback = format!("https://zaptunnel.com/lnurlp/{username}");
+    let callback = format!("https://{}/lnurlp/{}", config.public_url, username);
     let max_sendable = 100_000_000;
     let min_sendable = config.min_sendable();
 
@@ -81,7 +79,7 @@ pub(crate) async fn get_lnurl_invoice_impl(
 
     let desc_hash = match zap_request.as_ref() {
         None => {
-            let metadata = calculate_metadata(&username);
+            let metadata = calculate_metadata(&username, &config.public_url);
             sha256::Hash::hash(metadata.as_bytes())
         }
         Some(event) => {

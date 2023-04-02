@@ -40,6 +40,9 @@ pub struct Config {
     #[clap(default_value_t = 3000, long)]
     /// Port for zap-tunnel's webserver
     pub port: u16,
+    #[clap(long)]
+    /// Public URL for zap-tunnel's webserver (eg zaptunnel.com)
+    pub public_url: String,
 }
 
 impl Config {
@@ -79,6 +82,7 @@ impl Config {
             db_path: "db.sqlite".to_string(),
             bind: "0.0.0.0".to_string(),
             port: 3000,
+            public_url: "localhost".to_string(),
         }
     }
 }
