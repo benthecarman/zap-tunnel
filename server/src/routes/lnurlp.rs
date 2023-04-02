@@ -14,6 +14,7 @@ use lightning_invoice::Invoice as LnInvoice;
 use lnurl::pay::{LnURLPayInvoice, PayResponse};
 use lnurl::Tag;
 use nostr::Event;
+use serde_json::json;
 use tonic_openssl_lnd::invoicesrpc::AddHoldInvoiceRequest;
 use tonic_openssl_lnd::LndInvoicesClient;
 
@@ -131,18 +132,29 @@ pub async fn get_lnurl_invoice(
     Path(username): Path<String>,
     Query(params): Query<HashMap<String, String>>,
     Extension(state): Extension<State>,
-) -> Result<Json<LnURLPayInvoice>, (StatusCode, String)> {
+) -> Result<Json<LnURLPayInvoice>, (StatusCode, Json<serde_json::Value>)> {
     match params.get("amount").and_then(|a| a.parse::<u64>().ok()) {
         None => Err((
             StatusCode::BAD_REQUEST,
-            String::from("{\"status\":\"ERROR\",\"reason\":\"Missing amount parameter.\"}"),
+            Json(json!({
+                "status": "ERROR",
+                "reason": "Missing amount parameter",
+            })),
         )),
         Some(amount_msats) => {
             let zap_request = params.get("nostr").map_or_else(
                 || Ok(None),
                 |event_str| {
                     Event::from_json(event_str)
-                        .map_err(|_| (StatusCode::BAD_REQUEST, String::from("Invalid zap request")))
+                        .map_err(|_| {
+                            (
+                                StatusCode::BAD_REQUEST,
+                                Json(json!({
+                                    "status": "ERROR",
+                                    "reason": "Invalid zap request",
+                                })),
+                            )
+                        })
                         .map(Some)
                 },
             )?;
@@ -150,7 +162,10 @@ pub async fn get_lnurl_invoice(
             let mut connection = state.db_pool.get().map_err(|_| {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    String::from("Failed to get database connection"),
+                    Json(json!({
+                        "status": "ERROR",
+                        "reason": "Failed to get database connection",
+                    })),
                 )
             })?;
 
@@ -174,15 +189,17 @@ pub async fn get_lnurl_invoice(
                 }
                 Ok(None) => Err((
                     StatusCode::NOT_FOUND,
-                    String::from(
-                        "{\"status\":\"ERROR\",\"reason\":\"Failed to generate invoice for user.\"}",
-                    ),
+                    Json(json!({
+                        "status": "ERROR",
+                        "reason": "The user you're searching for could not be found."
+                    })),
                 )),
                 Err(e) => Err((
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    format!(
-                        "{{\"status\":\"ERROR\",\"reason\":\"Failed to generate invoice: {e}\"}}",
-                    ),
+                    Json(json!({
+                        "status": "ERROR",
+                        "reason": format!("Failed to generate invoice: {}", e)
+                    })),
                 )),
             }
         }
