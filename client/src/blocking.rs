@@ -62,7 +62,10 @@ impl BlockingClient {
 
         match resp {
             Ok(resp) => Ok(resp.into_json()?),
-            Err(ureq::Error::Status(code, _)) => Err(Error::HttpResponse(code)),
+            Err(ureq::Error::Status(code, resp)) => {
+                let str = resp.into_string().ok();
+                Err(Error::HttpResponse(code, str))
+            }
             Err(e) => Err(Error::Ureq(e)),
         }
     }
@@ -90,7 +93,10 @@ impl BlockingClient {
 
         match resp {
             Ok(resp) => Ok(resp.into_json()?),
-            Err(ureq::Error::Status(code, _)) => Err(Error::HttpResponse(code)),
+            Err(ureq::Error::Status(code, resp)) => {
+                let str = resp.into_string().ok();
+                Err(Error::HttpResponse(code, str))
+            }
             Err(e) => Err(Error::Ureq(e)),
         }
     }
@@ -121,7 +127,10 @@ impl BlockingClient {
 
         match resp {
             Ok(resp) => Ok(resp.into_json()?),
-            Err(ureq::Error::Status(code, _)) => Err(Error::HttpResponse(code)),
+            Err(ureq::Error::Status(code, resp)) => {
+                let str = resp.into_string().ok();
+                Err(Error::HttpResponse(code, str))
+            }
             Err(e) => Err(Error::Ureq(e)),
         }
     }

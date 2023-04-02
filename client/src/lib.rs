@@ -81,7 +81,7 @@ pub enum Error {
     #[cfg(any(feature = "async", feature = "async-https"))]
     Reqwest(reqwest::Error),
     /// HTTP response error
-    HttpResponse(u16),
+    HttpResponse(u16, Option<String>),
     /// IO error during ureq response read
     Io(io::Error),
     /// No header found in ureq response
