@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
     let macaroon_file = config
         .macaroon_file
         .clone()
-        .unwrap_or_else(|| default_macaroon_file(config.network.clone()));
+        .unwrap_or_else(|| default_macaroon_file(&config.network));
 
     let cert_file = config.cert_file.unwrap_or_else(default_cert_file);
 

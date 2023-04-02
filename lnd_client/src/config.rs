@@ -46,7 +46,7 @@ pub fn default_cert_file() -> String {
     format!("{}/.lnd/tls.cert", home_directory())
 }
 
-pub fn default_macaroon_file(network: String) -> String {
+pub fn default_macaroon_file(network: &str) -> String {
     format!(
         "{}/.lnd/data/chain/bitcoin/{}/admin.macaroon",
         home_directory(),
