@@ -1,7 +1,7 @@
 [package]
 name = "zap-tunnel-client"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 authors = ["Ben Carman <benthecarman@live.com>"]
 license = "MIT"
 homepage = "https://github.com/benthecarman/zap-tunnel/"

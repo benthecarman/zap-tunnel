@@ -1,18 +1,19 @@
-use std::str::FromStr;
-
 use clap::Parser;
-use url::Url;
 
 #[derive(Parser, Debug, Clone)]
 #[command(version, author, about)]
 /// A tool to use zap-tunnel with lnd
 pub struct Config {
-    #[clap(default_value_t = Url::from_str("https://zaptunnel.com").unwrap(), long)]
-    /// Host of the proxy server
-    pub proxy_url: Url,
+    #[clap(default_value_t = String::from("profiles.sled"), long)]
+    /// Location of database file
+    pub db_path: String,
     #[clap(default_value_t = 20, long, short)]
     /// Number of invoices to cache on the proxy server
     pub invoice_cache: usize,
+    #[clap(default_value_t = String::from("Zap Tunnel"), long)]
+    /// Memo in the invoices created for the zap tunnel.
+    /// This is only for personal reference.
+    pub invoice_memo: String,
     #[clap(default_value_t = String::from("127.0.0.1"), long)]
     /// Host of the GRPC server for lnd
     pub lnd_host: String,

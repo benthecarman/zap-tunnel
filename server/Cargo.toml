@@ -19,7 +19,7 @@ dioxus-ssr = { version = "0.3.0" }
 home = "0.5.4"
 lightning = "0.0.114"
 lightning-invoice = { version = "0.22.0", features = ["serde"] }
-lnurl-rs = { git = "https://github.com/benthecarman/lnurl-rs", default-features = false }
+lnurl-rs = { version = "0.2.1", default-features = false }
 nostr = "0.19.5"
 nostr-sdk = "0.19.1"
 tonic_openssl_lnd = "0.2.0"

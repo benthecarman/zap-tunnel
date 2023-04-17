@@ -11,7 +11,7 @@ use crate::{AddInvoices, Builder, CheckUser, CreateUser, CreateUserResponse, Err
 
 #[derive(Debug, Clone)]
 pub struct BlockingClient {
-    url: String,
+    pub url: String,
     agent: Agent,
 }
 

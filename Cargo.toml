@@ -3,3 +3,4 @@
 members = [
     "server", "client", "lnd_client"
 ]
+resolver = "2"
