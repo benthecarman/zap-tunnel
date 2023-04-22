@@ -1,27 +1,12 @@
+use crate::models::*;
+use gloo_net::http::Request;
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
 
 #[cfg(feature = "ssr")]
 pub fn register_server_functions() {
-    _ = SetupUser::register();
-    _ = ServiceStatus::register();
-}
-
-#[server(SetupUser, "/api")]
-pub async fn setup_user(name: String, service: String) -> Result<String, ServerFnError> {
-    tracing::info!("Setting up user...");
-
-    let db: sled::Db = sled::open("profiles.sled").unwrap();
-
-    let old_value = db.insert(service.as_bytes(), name.as_bytes()).unwrap();
-
-    Ok(format!("old values: {:?}", old_value))
-}
-
-#[server(ServiceStatus, "/api")]
-pub async fn service_status(service_name: String) -> Result<String, ServerFnError> {
-    Ok(format!("hey this is the status of {service_name}"))
+    ()
 }
 
 #[component]
@@ -54,26 +39,31 @@ pub fn App(cx: Scope) -> impl IntoView {
 /// Renders the home page of your application.
 #[component]
 fn HomePage(cx: Scope) -> impl IntoView {
-    let setup = create_server_action::<SetupUser>(cx);
+    let all = create_local_resource(
+        cx,
+        move || {},
+        |_| async move {
+            tracing::info!("loading data...");
+            let resp = Request::get("/all").send().await.unwrap();
 
-    // let status_data = create_resource(
-    //     cx,
-    //     move || params().unwrap().service_name.clone(),
-    //     |value| async move {
-    //         tracing::info!("loading data...");
-    //         service_status(value).await
-    //     },
-    // );
+            resp.json::<Vec<SetupUser>>().await.unwrap()
+        },
+    );
 
     view! { cx,
         <h1>"Welcome to Zap Tunnel"</h1>
         <p>"This allows you to have a lightning address that goes right your lightning node!."</p>
         <br/>
-        <ActionForm action=setup>
-            <input type="text" name="name" placeholder="name" />
-            <input type="text" name="service" placeholder="tbc" />
+        <Suspense fallback=move || view! { cx, <p>"Loading..."</p> }>
+            { move || all.read(cx).map(|all|
+                all.iter().map(|status| view! { cx, <pre><a href=format!("/view/{}", &status.proxy)>{&status.username} {&status.proxy}</a></pre> }).collect::<Vec<_>>())
+            }
+        </Suspense>
+        <Form action="/setup-user" method="post">
+            <input type="text" name="username" placeholder="name" />
+            <input type="text" name="proxy" placeholder="tbc" />
             <input type="submit" value="Submit!" />
-        </ActionForm>
+        </Form>
     }
 }
 
@@ -86,19 +76,24 @@ pub struct ServiceParams {
 fn ServiceViewer(cx: Scope) -> impl IntoView {
     let params = use_params::<ServiceParams>(cx);
 
-    let status_data = create_resource(
+    let status_data = create_local_resource(
         cx,
         move || params().unwrap().service_name.clone(),
-        |value| async move {
+        |proxy| async move {
             tracing::info!("loading data...");
-            service_status(value).await
+            let resp = Request::get(&format!("/status/{proxy}"))
+                .send()
+                .await
+                .unwrap();
+
+            resp.json::<Status>().await.unwrap()
         },
     );
 
     view! { cx,
         <h1>{params().ok().unwrap().service_name}</h1>
         <Suspense fallback=move || view! { cx, <p>"Loading..."</p> }>
-            { move || status_data.read(cx).map(|status| view! { cx, <pre>{status}</pre> }) }
+            { move || status_data.read(cx).map(|status| view! { cx, <pre>{status.username} {status.proxy} {status.invoices_remaining}</pre> }) }
         </Suspense>
     }
 }

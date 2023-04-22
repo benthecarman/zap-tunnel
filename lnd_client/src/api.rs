@@ -1,27 +1,28 @@
+use crate::models::*;
+use crate::State;
 use anyhow::anyhow;
+use axum::extract::Path;
 use axum::http::StatusCode;
-use axum::{Extension, Json};
+use axum::{Extension, Form, Json};
 use lightning_invoice::Invoice as LnInvoice;
-use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::time::SystemTime;
 use std::{thread, time};
-use tonic_openssl_lnd::lnrpc::Invoice;
+use tonic_openssl_lnd::lnrpc;
 use zap_tunnel_client::blocking::*;
 use zap_tunnel_client::Builder;
 
-use crate::State;
-
 pub(crate) async fn run_loop(state: State) -> anyhow::Result<()> {
-    let db: sled::Db = sled::open(&state.config.db_path)?;
     loop {
-        let keys: Vec<String> = db
-            .iter()
-            .filter(|x| x.is_ok())
-            .map(|x| String::from_utf8(x.unwrap().0.to_vec()))
-            .filter(|x| x.is_ok())
-            .map(|x| x.unwrap())
-            .collect();
+        let keys: Vec<String> = {
+            let db: sled::Db = sled::open(&state.config.db_path)?;
+            db.iter()
+                .filter(|x| x.is_ok())
+                .map(|x| String::from_utf8(x.unwrap().0.to_vec()))
+                .filter(|x| x.is_ok())
+                .map(|x| x.unwrap())
+                .collect()
+        };
         let mut futures = Vec::new();
         for key in keys.iter() {
             let client = BlockingClient::from_builder(Builder::new(key))?;
@@ -53,7 +54,7 @@ async fn upload_invoices(state: &State, client: BlockingClient) -> anyhow::Resul
     if need_invoices > 0 {
         let mut invoices: Vec<LnInvoice> = vec![];
         for _ in 0..need_invoices {
-            let inv = Invoice {
+            let inv = lnrpc::Invoice {
                 memo: state.config.invoice_memo.clone(),
                 expiry: 31536000, // ~1 year
                 private: true,
@@ -74,12 +75,6 @@ async fn upload_invoices(state: &State, client: BlockingClient) -> anyhow::Resul
     Ok(0)
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct SetupUser {
-    pub proxy: String,
-    pub username: String,
-}
-
 async fn setup_user_impl(
     current: Option<String>,
     state: &State,
@@ -89,8 +84,9 @@ async fn setup_user_impl(
     match current {
         // handle new registration
         None => {
-            let client = BlockingClient::from_builder(Builder::new(&payload.proxy))?;
-            let key = state.get_secret_key(&payload.proxy)?;
+            let url = format!("https://{}/", payload.proxy);
+            let client = BlockingClient::from_builder(Builder::new(&url))?;
+            let key = state.get_secret_key(&url)?;
             let resp = client.create_user(&state.context, &payload.username, &key)?;
             if resp.username == payload.username {
                 db.insert(payload.proxy, payload.username.as_bytes())?;
@@ -115,7 +111,7 @@ async fn setup_user_impl(
 
 pub async fn setup_user(
     Extension(state): Extension<State>,
-    Json(payload): Json<SetupUser>,
+    Form(payload): Form<SetupUser>,
 ) -> Result<Json<bool>, (StatusCode, String)> {
     let db: sled::Db = sled::open(&state.config.db_path).map_err(|_| {
         (
@@ -137,18 +133,6 @@ pub async fn setup_user(
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ViewStatus {
-    pub proxy: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct Status {
-    pub proxy: String,
-    pub username: String,
-    pub invoices_remaining: u64,
-}
-
 async fn view_status_impl(state: &State, proxy: &str) -> anyhow::Result<Status> {
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
@@ -165,7 +149,7 @@ async fn view_status_impl(state: &State, proxy: &str) -> anyhow::Result<Status> 
 
 pub async fn view_status(
     Extension(state): Extension<State>,
-    Json(payload): Json<ViewStatus>,
+    Path(proxy): Path<String>,
 ) -> Result<Json<Status>, (StatusCode, String)> {
     let db: sled::Db = sled::open(&state.config.db_path).map_err(|_| {
         (
@@ -173,7 +157,7 @@ pub async fn view_status(
             String::from("Failed to get database connection"),
         )
     })?;
-    let current = db.get(&payload.proxy).map_err(|_| {
+    let current = db.get(&proxy).map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             String::from("Failed to get database item"),
@@ -187,7 +171,7 @@ pub async fn view_status(
             StatusCode::BAD_REQUEST,
             String::from("Not registered to proxy"),
         )),
-        Some(_) => match view_status_impl(&state, &payload.proxy).await {
+        Some(_) => match view_status_impl(&state, &proxy).await {
             Ok(status) => Ok(Json(status)),
             Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string())),
         },
@@ -197,10 +181,10 @@ pub async fn view_status(
 pub async fn get_all(
     Extension(state): Extension<State>,
 ) -> Result<Json<Vec<SetupUser>>, (StatusCode, String)> {
-    let db: sled::Db = sled::open(&state.config.db_path).map_err(|_| {
+    let db: sled::Db = sled::open(&state.config.db_path).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            String::from("Failed to get database connection"),
+            format!("Failed to get database connection: {e}"),
         )
     })?;
     let iter = db.iter();

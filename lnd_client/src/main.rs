@@ -9,6 +9,7 @@ use tonic_openssl_lnd::LndLightningClient;
 mod api;
 mod app;
 mod config;
+mod models;
 
 #[cfg(feature = "ssr")]
 #[derive(Clone)]
@@ -33,11 +34,11 @@ impl State {
 #[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() {
+    use crate::app::*;
     use axum::routing::{get, post};
     use axum::{Extension, Router};
     use leptos::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
-    use zap_tunnel_lnd::app::*;
 
     register_server_functions();
 
@@ -54,15 +55,15 @@ async fn main() {
         .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
         .route("/all", get(api::get_all))
         .route("/setup-user", post(api::setup_user))
-        .route("/view-status", post(api::view_status))
+        .route("/status/:proxy", get(api::view_status))
         .leptos_routes(leptos_options.clone(), routes, |cx| view! { cx, <App/> })
         .layer(Extension(Arc::new(leptos_options)))
         .layer(Extension(state.clone()));
 
     // spawn a task to run the run loop
-    let handle = tokio::spawn(async move {
-        api::run_loop(state).await.expect("failed to run run_loop");
-    });
+    // let handle = tokio::spawn(async move {
+    //     api::run_loop(state).await.expect("failed to run run_loop");
+    // });
 
     // run our app with hyper
     log!("listening on http://{}", &addr);
@@ -71,7 +72,7 @@ async fn main() {
         .await
         .unwrap();
 
-    handle.await.expect("failed to join run_loop");
+    // handle.await.expect("failed to join run_loop");
 }
 
 const LUD_13_STRING: &str = "DO NOT EVER SIGN THIS TEXT WITH YOUR PRIVATE KEYS! IT IS ONLY USED FOR DERIVATION OF LNURL-AUTH HASHING-KEY, DISCLOSING ITS SIGNATURE WILL COMPROMISE YOUR LNURL-AUTH IDENTITY AND MAY LEAD TO LOSS OF FUNDS!";
@@ -80,6 +81,10 @@ const LUD_13_STRING: &str = "DO NOT EVER SIGN THIS TEXT WITH YOUR PRIVATE KEYS! 
 async fn init() -> anyhow::Result<State> {
     let config: Config = Config::parse();
     let config_clone: Config = config.clone();
+
+    if sled::open(&config.db_path).is_err() {
+        std::fs::create_dir_all(&config.db_path)?;
+    }
 
     let macaroon_file = config
         .macaroon_file
