@@ -59,11 +59,29 @@ fn HomePage(cx: Scope) -> impl IntoView {
                 all.iter().map(|status| view! { cx, <pre><a href=format!("/view/{}", &status.proxy)>{&status.username} {&status.proxy}</a></pre> }).collect::<Vec<_>>())
             }
         </Suspense>
+                    <ErrorBoundary
+                // the fallback receives a signal containing current errors
+                fallback=|cx, errors| view! { cx,
+                    <div class="error">
+                        <p>"Not a number! Errors: "</p>
+                        // we can render a list of errors
+                        // as strings, if we'd like
+                        <ul>
+                            {move || errors.get()
+                                .into_iter()
+                                .map(|(_, e)| view! { cx, <li>{e.to_string()}</li>})
+                                .collect::<Vec<_>>()
+                            }
+                        </ul>
+                    </div>
+                }
+            >
         <Form action="/setup-user" method="post">
             <input type="text" name="username" placeholder="name" />
             <input type="text" name="proxy" placeholder="tbc" />
             <input type="submit" value="Submit!" />
         </Form>
+        </ErrorBoundary>
     }
 }
 

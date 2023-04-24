@@ -9,6 +9,8 @@ use tonic_openssl_lnd::LndLightningClient;
 mod api;
 mod app;
 mod config;
+mod error_template;
+mod fileserv;
 mod models;
 
 #[cfg(feature = "ssr")]
@@ -35,6 +37,7 @@ impl State {
 #[tokio::main]
 async fn main() {
     use crate::app::*;
+    use crate::fileserv::*;
     use axum::routing::{get, post};
     use axum::{Extension, Router};
     use leptos::*;
@@ -57,6 +60,7 @@ async fn main() {
         .route("/setup-user", post(api::setup_user))
         .route("/status/:proxy", get(api::view_status))
         .leptos_routes(leptos_options.clone(), routes, |cx| view! { cx, <App/> })
+        .fallback(file_and_error_handler)
         .layer(Extension(Arc::new(leptos_options)))
         .layer(Extension(state.clone()));
 

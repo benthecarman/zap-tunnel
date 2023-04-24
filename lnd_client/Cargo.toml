@@ -31,6 +31,11 @@ serde_json = "1.0"
 simple_logger = "4"
 sled = "0.34.7"
 tokio = "1"
+thiserror = "1.0.38"
+tracing = { version = "0.1.37", optional = true }
+http = "0.2.8"
+tower = { version = "0.4.13", optional = true }
+tower-http = { version = "0.4", features = ["fs"], optional = true }
 tonic_openssl_lnd = { version = "0.2.0", optional = true }
 url = { version = "2.3.1", features = ["serde"] }
 wasm-bindgen = "0.2"
@@ -39,11 +44,15 @@ zap-tunnel-client = { path = "../client", default-features = false, features = [
 [features]
 default = ["ssr"]
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
-ssr = ["dep:axum", "dep:leptos_axum", "leptos/ssr", "leptos_meta/ssr", "leptos_router/ssr", "dep:tonic_openssl_lnd", "dep:zap-tunnel-client", "dep:home"]
+ssr = ["dep:axum", "dep:leptos_axum", "tower", "tower-http", "leptos/ssr", "leptos_meta/ssr", "leptos_router/ssr", "dep:tonic_openssl_lnd", "dep:zap-tunnel-client", "dep:home"]
+
+[package.metadata.cargo-all-features]
+denylist = ["axum", "tower", "tower-http", "tokio", "leptos_axum"]
+skip_feature_sets = [["csr", "ssr"], ["csr", "hydrate"], ["ssr", "hydrate"]]
 
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name
-output-name = "leptos_start"
+output-name = "zap_tunnel_lnd"
 # The site root folder is where cargo-leptos generate all output. WARNING: all content of this folder will be erased on a rebuild. Use it in your server setup.
 site-root = "target/site"
 # The site-root relative folder where all compiled output (JS, WASM and CSS) is written
