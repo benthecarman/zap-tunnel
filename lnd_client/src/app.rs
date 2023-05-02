@@ -1,5 +1,6 @@
 use crate::models::*;
 use gloo_net::http::Request;
+use leptos::html::Input;
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
@@ -50,6 +51,23 @@ fn HomePage(cx: Scope) -> impl IntoView {
         },
     );
 
+    let action = create_action(cx, |user: &SetupUser| {
+        let user = user.to_owned();
+        async move {
+            let resp = Request::post(&format!("/setup-user"))
+                .json(&user)
+                .unwrap()
+                .send()
+                .await
+                .unwrap();
+
+            return resp.status();
+        }
+    });
+
+    let username_ref = create_node_ref::<Input>(cx);
+    let proxy_ref = create_node_ref::<Input>(cx);
+
     view! { cx,
         <h1>"Welcome to Zap Tunnel"</h1>
         <p>"This allows you to have a lightning address that goes right your lightning node!."</p>
@@ -76,11 +94,22 @@ fn HomePage(cx: Scope) -> impl IntoView {
                     </div>
                 }
             >
-        <Form action="/setup-user" method="post">
-            <input type="text" name="username" placeholder="name" />
-            <input type="text" name="proxy" placeholder="tbc" />
+        <form on:submit=move |ev| {
+            ev.prevent_default();
+            let username = username_ref.get().unwrap();
+            let proxy = proxy_ref.get().unwrap();
+            let user = SetupUser {
+                username: username.value(),
+                proxy: proxy.value(),
+            };
+            action.dispatch(user);
+        }>
+            <input type="text" name="username" placeholder="name"  node_ref=username_ref/>
+            <input type="text" name="proxy" placeholder="tbc" node_ref=proxy_ref />
             <input type="submit" value="Submit!" />
-        </Form>
+        </form>
+        <p> {move || action.pending().get().then(|| "Loading...") } </p>
+        <p> {move || action.value().get().unwrap_or_default().to_string()} </p>
         </ErrorBoundary>
     }
 }

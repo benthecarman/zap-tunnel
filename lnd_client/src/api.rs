@@ -3,7 +3,7 @@ use crate::State;
 use anyhow::anyhow;
 use axum::extract::Path;
 use axum::http::StatusCode;
-use axum::{Extension, Form, Json};
+use axum::{Extension, Json};
 use lightning_invoice::Invoice as LnInvoice;
 use std::str::FromStr;
 use std::time::SystemTime;
@@ -111,7 +111,7 @@ async fn setup_user_impl(
 
 pub async fn setup_user(
     Extension(state): Extension<State>,
-    Form(payload): Form<SetupUser>,
+    Json(payload): Json<SetupUser>,
 ) -> Result<Json<bool>, (StatusCode, String)> {
     let db: sled::Db = sled::open(&state.config.db_path).map_err(|_| {
         (
