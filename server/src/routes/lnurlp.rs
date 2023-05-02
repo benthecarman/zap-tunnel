@@ -181,10 +181,8 @@ pub async fn get_lnurl_invoice(
 
             match res {
                 Ok(Some(inv)) => {
-                    let res = LnURLPayInvoice {
-                        pr: inv.to_string(),
-                    };
-                    println!("Generated invoice: {}", res.pr);
+                    println!("Generated invoice: {}", inv);
+                    let res = LnURLPayInvoice::new(inv);
                     Ok(Json(res))
                 }
                 Ok(None) => Err((

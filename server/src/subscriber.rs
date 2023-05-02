@@ -192,25 +192,14 @@ async fn handle_accepted_invoice_impl(
         .flatten();
 
     if let Some(user_invoice) = invoice_opt {
-        let invoice_time = user_invoice.invoice().timestamp();
-        let expiry_time = user_invoice.invoice().expiry_time();
-        let timeout_seconds = match invoice_time.elapsed() {
-            Ok(elapsed) => {
-                let remaining_time_secs = expiry_time
-                    .checked_sub(elapsed)
-                    .map(|d| d.as_secs())
-                    .unwrap_or(0);
-
-                // max 60 seconds timeout, min 10 seconds timeout
-                if remaining_time_secs > 60 {
-                    Some(60)
-                } else if remaining_time_secs > 10 {
-                    Some(remaining_time_secs)
-                } else {
-                    None
-                }
-            }
-            Err(_) => None,
+        let remaining_time_secs = user_invoice.invoice().duration_until_expiry().as_secs();
+        // max 60 seconds timeout, min 10 seconds timeout
+        let timeout_seconds = if remaining_time_secs > 60 {
+            Some(60)
+        } else if remaining_time_secs > 10 {
+            Some(remaining_time_secs)
+        } else {
+            None
         };
 
         // only pay invoice if we have enough time

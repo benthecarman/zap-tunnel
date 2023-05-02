@@ -11,7 +11,7 @@ use std::net::SocketAddr;
 use diesel::r2d2::{ConnectionManager, PooledConnection};
 use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SqliteConnection};
 use lightning::ln::PaymentSecret;
-use lightning_invoice::{Currency, Invoice, InvoiceBuilder, InvoiceDescription};
+use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
 use nostr::key::SecretKey;
 use nostr::prelude::TagKind::Custom;
 use nostr::prelude::ToBech32;
@@ -45,10 +45,6 @@ pub async fn handle_zap(
     if let Some(zap) = zap_opt {
         let zap_request = zap.zap_request();
         let zap_invoice = zap.invoice();
-        let desc_hash = match zap_invoice.description() {
-            InvoiceDescription::Direct(_) => return Err(anyhow::anyhow!("direct description")),
-            InvoiceDescription::Hash(hash) => hash.0,
-        };
 
         let preimage = &mut [0u8; 32];
         OsRng.fill_bytes(preimage);
@@ -67,7 +63,7 @@ pub async fn handle_zap(
 
         let raw_invoice = InvoiceBuilder::new(Currency::Bitcoin)
             .amount_milli_satoshis(amt_msats)
-            .description_hash(desc_hash)
+            .invoice_description(zap_invoice.description())
             .current_timestamp()
             .payment_hash(invoice_hash)
             .payment_secret(PaymentSecret(*payment_secret))
