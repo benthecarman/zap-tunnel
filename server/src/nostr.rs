@@ -11,12 +11,10 @@ use std::net::SocketAddr;
 use diesel::r2d2::{ConnectionManager, PooledConnection};
 use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SqliteConnection};
 use lightning::ln::PaymentSecret;
-use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
+use lightning_invoice::{Currency, InvoiceBuilder};
 use nostr::key::SecretKey;
-use nostr::prelude::TagKind::Custom;
 use nostr::prelude::ToBech32;
-use nostr::Tag::Generic;
-use nostr::{EventBuilder, Keys, Kind};
+use nostr::{EventBuilder, Keys};
 use nostr_sdk::Client;
 
 const RELAYS: [&str; 9] = [
@@ -61,47 +59,21 @@ pub async fn handle_zap(
             .amount_milli_satoshis()
             .expect("Invoice must have an amount");
 
-        let raw_invoice = InvoiceBuilder::new(Currency::Bitcoin)
+        let fake_invoice = InvoiceBuilder::new(Currency::Bitcoin)
             .amount_milli_satoshis(amt_msats)
             .invoice_description(zap_invoice.description())
             .current_timestamp()
             .payment_hash(invoice_hash)
             .payment_secret(PaymentSecret(*payment_secret))
             .min_final_cltv_expiry_delta(144)
-            .build_raw()
-            .and_then(|raw| {
-                raw.sign(|hash| Ok(SECP256K1.sign_ecdsa_recoverable(hash, &private_key)))
-            })?;
+            .build_signed(|hash| SECP256K1.sign_ecdsa_recoverable(hash, &private_key))?;
 
-        let fake_invoice = Invoice::from_signed(raw_invoice)?;
-
-        let invoice_tag = Generic(Custom("bolt11".to_string()), vec![fake_invoice.to_string()]);
-        let preimage_tag = Generic(Custom("preimage".to_string()), vec![preimage.to_hex()]);
-        let description_tag = Generic(Custom("description".to_string()), vec![zap.request]);
-        let amount_tag = Generic(Custom("amount".to_string()), vec![amt_msats.to_string()]);
-
-        let mut tags = vec![invoice_tag, preimage_tag, description_tag, amount_tag];
-
-        // add e tag
-        if let Some(tag) = zap_request
-            .tags
-            .clone()
-            .into_iter()
-            .find(|t| t.as_vec().first() == Some(&"e".to_string()))
-        {
-            tags.push(tag);
-        }
-
-        // add p tag
-        if let Some(tag) = zap_request
-            .tags
-            .into_iter()
-            .find(|t| t.as_vec().first() == Some(&"p".to_string()))
-        {
-            tags.push(tag);
-        }
-
-        let event = EventBuilder::new(Kind::Zap, "", &tags).to_event(nostr_keys)?;
+        let event = EventBuilder::new_zap(
+            fake_invoice.to_string(),
+            Some(preimage.to_hex()),
+            zap_request,
+        )
+        .to_event(nostr_keys)?;
 
         // Create new client
         let client = Client::new(nostr_keys);
