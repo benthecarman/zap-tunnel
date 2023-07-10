@@ -19,7 +19,6 @@ use nostr_sdk::Client;
 
 const RELAYS: [&str; 9] = [
     "wss://nostr.mutinywallet.com",
-    "wss://nostr.zebedee.cloud",
     "wss://relay.snort.social",
     "wss://relay.nostr.band",
     "wss://eden.nostr.land",
@@ -80,6 +79,7 @@ pub async fn handle_zap(
         let relays: Vec<(String, Option<SocketAddr>)> =
             RELAYS.into_iter().map(|r| (r.to_string(), None)).collect();
         client.add_relays(relays).await?;
+        client.connect().await;
 
         let event_id = client.send_event(event).await?;
 
