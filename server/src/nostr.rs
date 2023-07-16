@@ -17,7 +17,7 @@ use nostr::prelude::ToBech32;
 use nostr::{EventBuilder, Keys};
 use nostr_sdk::Client;
 
-const RELAYS: [&str; 9] = [
+const RELAYS: [&str; 8] = [
     "wss://nostr.mutinywallet.com",
     "wss://relay.snort.social",
     "wss://relay.nostr.band",
@@ -82,6 +82,8 @@ pub async fn handle_zap(
         client.connect().await;
 
         let event_id = client.send_event(event).await?;
+
+        client.disconnect().await?;
 
         println!(
             "Broadcasted event id: {}!",
