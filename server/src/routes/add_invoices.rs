@@ -4,8 +4,8 @@ use axum::{Extension, Json};
 use bitcoin::secp256k1::SECP256K1;
 use bitcoin::Network;
 use diesel::{Connection, RunQueryDsl, SqliteConnection};
+use lightning_invoice::Bolt11Invoice;
 use lightning_invoice::Currency;
-use lightning_invoice::Invoice as LnInvoice;
 
 pub use zap_tunnel_client::AddInvoices;
 
@@ -15,7 +15,7 @@ use crate::models::user::User;
 use crate::routes::handle_anyhow_error;
 use crate::State;
 
-fn check_invoices(invoices: &[LnInvoice], network: Network) -> bool {
+fn check_invoices(invoices: &[Bolt11Invoice], network: Network) -> bool {
     let expected_currency = match network {
         Network::Bitcoin => Currency::Bitcoin,
         Network::Testnet => Currency::BitcoinTestnet,

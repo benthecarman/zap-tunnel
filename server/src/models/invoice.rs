@@ -4,7 +4,7 @@ use std::time::SystemTime;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::hashes::sha256::Hash as Sha256;
 use diesel::prelude::*;
-use lightning_invoice::Invoice as LnInvoice;
+use lightning_invoice::Bolt11Invoice;
 
 use super::schema::invoices;
 
@@ -22,7 +22,7 @@ pub struct Invoice {
 pub const DEFAULT_INVOICE_EXPIRY: i64 = 360;
 
 impl Invoice {
-    pub fn new(invoice: &LnInvoice, username: Option<&str>) -> Self {
+    pub fn new(invoice: &Bolt11Invoice, username: Option<&str>) -> Self {
         let expires_at: i64 = invoice
             .duration_since_epoch()
             .checked_add(invoice.expiry_time())
@@ -42,8 +42,8 @@ impl Invoice {
         Sha256::from_str(&self.payment_hash).expect("invalid payment hash")
     }
 
-    pub fn invoice(&self) -> LnInvoice {
-        LnInvoice::from_str(&self.invoice).expect("invalid invoice")
+    pub fn invoice(&self) -> Bolt11Invoice {
+        Bolt11Invoice::from_str(&self.invoice).expect("invalid invoice")
     }
 
     pub fn is_used(&self) -> bool {

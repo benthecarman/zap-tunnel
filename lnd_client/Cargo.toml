@@ -21,7 +21,7 @@ leptos = { version = "0.2", default-features = false, features = ["serde"] }
 leptos_meta = { version = "0.2", default-features = false }
 leptos_axum = { version = "0.2", optional = true }
 leptos_router = { version = "0.2", default-features = false }
-lightning-invoice = { version = "0.23.0", features = ["std"] }
+lightning-invoice = { version = "0.24.0", features = ["std"] }
 log = "0.4"
 home = { version = "0.5.4", optional = true }
 gloo-net = "0.2.6"

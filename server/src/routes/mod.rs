@@ -48,7 +48,7 @@ mod test {
     use bitcoin::secp256k1::{rand, PublicKey, SecretKey, SECP256K1};
     use diesel::{Connection, SqliteConnection};
     use diesel_migrations::MigrationHarness;
-    use lightning_invoice::Invoice as LnInvoice;
+    use lightning_invoice::Bolt11Invoice;
     use lnurl::Tag;
 
     use crate::routes::add_invoices::AddInvoices;
@@ -87,7 +87,7 @@ mod test {
 
         let username = String::from("test_user");
         let private_key = SecretKey::new(&mut rand::thread_rng());
-        let pubkey = PublicKey::from_secret_key(&SECP256K1, &private_key);
+        let pubkey = PublicKey::from_secret_key(SECP256K1, &private_key);
 
         let signature =
             SECP256K1.sign_ecdsa_low_r(&CreateUser::message_hash(&username).unwrap(), &private_key);
@@ -113,7 +113,7 @@ mod test {
 
         let username = String::from("test_user");
         let private_key = SecretKey::new(&mut rand::thread_rng());
-        let pubkey = PublicKey::from_secret_key(&SECP256K1, &private_key);
+        let pubkey = PublicKey::from_secret_key(SECP256K1, &private_key);
 
         let signature =
             SECP256K1.sign_ecdsa_low_r(&CreateUser::message_hash(&username).unwrap(), &private_key);
@@ -147,7 +147,7 @@ mod test {
 
         let username = String::from("test_user");
         let private_key = SecretKey::new(&mut rand::thread_rng());
-        let pubkey = PublicKey::from_secret_key(&SECP256K1, &private_key);
+        let pubkey = PublicKey::from_secret_key(SECP256K1, &private_key);
 
         let signature =
             SECP256K1.sign_ecdsa_low_r(&CreateUser::message_hash(&username).unwrap(), &private_key);
@@ -163,7 +163,7 @@ mod test {
         assert_eq!(user.username, username);
         assert_eq!(user.pubkey(), pubkey);
 
-        let ln_invoice = LnInvoice::from_str(INVOICE_STR).unwrap();
+        let ln_invoice = Bolt11Invoice::from_str(INVOICE_STR).unwrap();
 
         let signature = SECP256K1.sign_ecdsa_low_r(
             &AddInvoices::message_hash(&[ln_invoice.clone()]).unwrap(),

@@ -18,7 +18,7 @@ mod test {
     use diesel::associations::HasTable;
     use diesel::{Connection, QueryDsl, RunQueryDsl, SqliteConnection, SqliteExpressionMethods};
     use diesel_migrations::MigrationHarness;
-    use lightning_invoice::Invoice as LnInvoice;
+    use lightning_invoice::Bolt11Invoice;
     use std::str::FromStr;
 
     const PUB_KEY_STR: &str = "032e58afe51f9ed8ad3cc7897f634d881fdbe49a81564629ded8156bebd2ffd1af";
@@ -93,7 +93,7 @@ mod test {
             .unwrap();
         assert_eq!(size, 1);
 
-        let inv: LnInvoice = LnInvoice::from_str(INVOICE_STR).unwrap();
+        let inv: Bolt11Invoice = Bolt11Invoice::from_str(INVOICE_STR).unwrap();
 
         let expiry: i64 = 1631312603;
 
@@ -114,7 +114,7 @@ mod test {
 
         assert_eq!(invoice_db.payment_hash(), inv.payment_hash().clone());
         assert_eq!(invoice_db.invoice().to_string(), INVOICE_STR);
-        assert_eq!(invoice_db.is_paid(), false);
+        assert!(!invoice_db.is_paid());
         assert_eq!(invoice_db.expires_at, expiry);
         assert_eq!(invoice_db.wrapped_expiry, None);
         assert_eq!(invoice_db.username(), Some(test_username));
@@ -139,7 +139,7 @@ mod test {
             .unwrap();
         assert_eq!(size, 1);
 
-        let inv: LnInvoice = LnInvoice::from_str(INVOICE_STR).unwrap();
+        let inv: Bolt11Invoice = Bolt11Invoice::from_str(INVOICE_STR).unwrap();
 
         let new_invoice = Invoice::new(&inv, Some(&test_username));
 
@@ -158,7 +158,7 @@ mod test {
 
         assert_eq!(invoice_db.payment_hash(), inv.payment_hash().clone());
         assert_eq!(invoice_db.invoice().to_string(), INVOICE_STR);
-        assert_eq!(invoice_db.is_paid(), false);
+        assert!(!invoice_db.is_paid());
         assert_eq!(invoice_db.username(), Some(test_username));
         assert!(invoice_db.wrapped_expiry.is_some());
 
@@ -171,7 +171,7 @@ mod test {
         let db_name = gen_tmp_db_name();
         let conn = &mut create_database(&db_name);
 
-        let inv: LnInvoice = LnInvoice::from_str(INVOICE_STR).unwrap();
+        let inv: Bolt11Invoice = Bolt11Invoice::from_str(INVOICE_STR).unwrap();
         let zap_request = nostr::Event::from_json("{\"pubkey\":\"32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245\",\"content\":\"\",\"id\":\"d9cc14d50fcb8c27539aacf776882942c1a11ea4472f8cdec1dea82fab66279d\",\"created_at\":1674164539,\"sig\":\"77127f636577e9029276be060332ea565deaf89ff215a494ccff16ae3f757065e2bc59b2e8c113dd407917a010b3abd36c8d7ad84c0e3ab7dab3a0b0caa9835d\",\"kind\":9734,\"tags\":[[\"e\",\"3624762a1274dd9636e0c552b53086d70bc88c165bc4dc0f9e836a1eaf86c3b8\"],[\"p\",\"32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245\"],[\"relays\",\"wss://relay.damus.io\",\"wss://nostr-relay.wlvs.space\",\"wss://nostr.fmt.wiz.biz\",\"wss://relay.nostr.bg\",\"wss://nostr.oxtr.dev\",\"wss://nostr.v0l.io\",\"wss://brb.io\",\"wss://nostr.bitcoiner.social\",\"ws://monad.jb55.com:8080\",\"wss://relay.snort.social\"]]}").unwrap();
 
         let new_zap = Zap::new(&inv, zap_request, None);

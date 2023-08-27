@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use bitcoin::hashes::sha256::Hash as Sha256;
 use diesel::prelude::*;
-use lightning_invoice::Invoice;
+use lightning_invoice::Bolt11Invoice;
 use nostr::prelude::Event;
 
 use super::schema::zaps;
@@ -18,7 +18,7 @@ pub struct Zap {
 }
 
 impl Zap {
-    pub fn new(invoice: &Invoice, request: Event, note_id: Option<Sha256>) -> Self {
+    pub fn new(invoice: &Bolt11Invoice, request: Event, note_id: Option<Sha256>) -> Self {
         Self {
             payment_hash: invoice.payment_hash().to_hex(),
             invoice: invoice.to_string(),
@@ -31,8 +31,8 @@ impl Zap {
         Sha256::from_str(&self.payment_hash).expect("invalid payment hash")
     }
 
-    pub fn invoice(&self) -> Invoice {
-        Invoice::from_str(&self.invoice).expect("invalid invoice")
+    pub fn invoice(&self) -> Bolt11Invoice {
+        Bolt11Invoice::from_str(&self.invoice).expect("invalid invoice")
     }
 
     pub fn zap_request(&self) -> Event {

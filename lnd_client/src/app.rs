@@ -6,9 +6,7 @@ use leptos_meta::*;
 use leptos_router::*;
 
 #[cfg(feature = "ssr")]
-pub fn register_server_functions() {
-    ()
-}
+pub fn register_server_functions() {}
 
 #[component]
 pub fn App(cx: Scope) -> impl IntoView {
@@ -61,7 +59,7 @@ fn HomePage(cx: Scope) -> impl IntoView {
                 .await
                 .unwrap();
 
-            return resp.status();
+            resp.status()
         }
     });
 
@@ -108,7 +106,7 @@ fn HomePage(cx: Scope) -> impl IntoView {
             <input type="text" name="proxy" placeholder="tbc" node_ref=proxy_ref />
             <input type="submit" value="Submit!" />
         </form>
-        <p> {move || action.pending().get().then(|| "Loading...") } </p>
+        <p> {move || action.pending().get().then_some("Loading...") } </p>
         <p> {move || action.value().get().unwrap_or_default().to_string()} </p>
         </ErrorBoundary>
     }

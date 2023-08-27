@@ -6,7 +6,7 @@ use bitcoin::hashes::sha256::Hash as Sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::secp256k1::{Message, PublicKey, Secp256k1, Verification};
-use lightning_invoice::Invoice as LnInvoice;
+use lightning_invoice::Bolt11Invoice;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -107,7 +107,7 @@ impl CheckUser {
 pub struct AddInvoices {
     pub pubkey: String,
     pub signature: String,
-    pub invoices: Vec<LnInvoice>,
+    pub invoices: Vec<Bolt11Invoice>,
 }
 
 impl AddInvoices {
@@ -119,7 +119,7 @@ impl AddInvoices {
         Ok(Signature::from_str(&self.signature)?)
     }
 
-    pub fn message_hash(invoices: &[LnInvoice]) -> anyhow::Result<Message> {
+    pub fn message_hash(invoices: &[Bolt11Invoice]) -> anyhow::Result<Message> {
         let bytes: Vec<u8> = invoices.iter().fold(Vec::new(), |mut acc, x| {
             acc.extend(x.payment_hash().to_vec());
             acc

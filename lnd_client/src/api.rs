@@ -4,7 +4,7 @@ use anyhow::anyhow;
 use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::{Extension, Json};
-use lightning_invoice::Invoice as LnInvoice;
+use lightning_invoice::Bolt11Invoice;
 use std::str::FromStr;
 use std::time::SystemTime;
 use std::{thread, time};
@@ -17,10 +17,9 @@ pub(crate) async fn run_loop(state: State) -> anyhow::Result<()> {
         let keys: Vec<String> = {
             let db: sled::Db = sled::open(&state.config.db_path)?;
             db.iter()
-                .filter(|x| x.is_ok())
-                .map(|x| String::from_utf8(x.unwrap().0.to_vec()))
-                .filter(|x| x.is_ok())
-                .map(|x| x.unwrap())
+                .filter_map(|x| x.ok())
+                .map(|(x, _)| String::from_utf8(x.to_vec()))
+                .filter_map(|x| x.ok())
                 .collect()
         };
         let mut futures = Vec::new();
@@ -52,7 +51,7 @@ async fn upload_invoices(state: &State, client: BlockingClient) -> anyhow::Resul
     let need_invoices = state.config.invoice_cache as i64 - invoices_remaining as i64;
 
     if need_invoices > 0 {
-        let mut invoices: Vec<LnInvoice> = vec![];
+        let mut invoices: Vec<Bolt11Invoice> = vec![];
         for _ in 0..need_invoices {
             let inv = lnrpc::Invoice {
                 memo: state.config.invoice_memo.clone(),
@@ -61,7 +60,7 @@ async fn upload_invoices(state: &State, client: BlockingClient) -> anyhow::Resul
                 ..Default::default()
             };
             let invoice = state.lnd.clone().add_invoice(inv).await?.into_inner();
-            let ln_invoice = LnInvoice::from_str(&invoice.payment_request)?;
+            let ln_invoice = Bolt11Invoice::from_str(&invoice.payment_request)?;
 
             invoices.push(ln_invoice);
         }

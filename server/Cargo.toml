@@ -17,11 +17,11 @@ diesel_migrations = "2.0.0"
 dioxus = { version = "0.3.2" }
 dioxus-ssr = { version = "0.3.0" }
 home = "0.5.4"
-lightning = "0.0.115"
-lightning-invoice = { version = "0.23.0", features = ["serde"] }
+lightning = "0.0.116"
+lightning-invoice = { version = "0.24.0", features = ["serde"] }
 lnurl-rs = { version = "0.2.4", default-features = false }
-nostr = { version = "=0.22.0-bitcoin-v0.29" }
-nostr-sdk = { version = "=0.22.0-bitcoin-v0.29" }
+nostr = { version = "=0.23.0-bitcoin-v0.29" }
+nostr-sdk = { version = "=0.23.0-bitcoin-v0.29" }
 tonic_openssl_lnd = "0.2.0"
 tokio = { version = "1.26.0", features = ["full"] }
 tokio-stream = "0.1.11"

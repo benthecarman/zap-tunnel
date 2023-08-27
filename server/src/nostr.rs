@@ -67,7 +67,7 @@ pub async fn handle_zap(
             .min_final_cltv_expiry_delta(144)
             .build_signed(|hash| SECP256K1.sign_ecdsa_recoverable(hash, &private_key))?;
 
-        let event = EventBuilder::new_zap(
+        let event = EventBuilder::new_zap_receipt(
             fake_invoice.to_string(),
             Some(preimage.to_hex()),
             zap_request,

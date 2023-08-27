@@ -2,7 +2,7 @@
 #![allow(clippy::result_large_err)]
 
 use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey, Signing};
-use lightning_invoice::Invoice;
+use lightning_invoice::Bolt11Invoice;
 use std::time::Duration;
 
 use ureq::{Agent, Proxy};
@@ -105,7 +105,7 @@ impl BlockingClient {
         &self,
         context: &Secp256k1<C>,
         private_key: &SecretKey,
-        invoices: &[Invoice],
+        invoices: &[Bolt11Invoice],
     ) -> Result<usize, Error> {
         let pubkey = PublicKey::from_secret_key(context, private_key);
 

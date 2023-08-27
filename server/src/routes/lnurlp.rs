@@ -10,7 +10,7 @@ use axum::http::StatusCode;
 use axum::{Extension, Json};
 use bitcoin::hashes::{sha256, Hash};
 use diesel::SqliteConnection;
-use lightning_invoice::Invoice as LnInvoice;
+use lightning_invoice::Bolt11Invoice;
 use lnurl::pay::{LnURLPayInvoice, PayResponse};
 use lnurl::Tag;
 use nostr::Event;
@@ -73,7 +73,7 @@ pub(crate) async fn get_lnurl_invoice_impl(
     invoice_client: &LndInvoicesClient,
     config: &Config,
     connection: &mut SqliteConnection,
-) -> anyhow::Result<Option<LnInvoice>> {
+) -> anyhow::Result<Option<Bolt11Invoice>> {
     if amount_msats <= config.min_sendable() {
         return Err(anyhow!("Amount too small"));
     }
@@ -118,7 +118,7 @@ pub(crate) async fn get_lnurl_invoice_impl(
     let client = &mut invoice_client.clone();
 
     let resp = client.add_hold_invoice(request).await?.into_inner();
-    let inv = LnInvoice::from_str(&resp.payment_request)?;
+    let inv = Bolt11Invoice::from_str(&resp.payment_request)?;
 
     if let Some(zap_request) = zap_request {
         let zap = Zap::new(&inv, zap_request, None);

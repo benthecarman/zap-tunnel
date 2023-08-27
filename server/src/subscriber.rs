@@ -77,25 +77,31 @@ pub async fn start_invoice_subscription(
         match InvoiceState::from_i32(ln_invoice.state) {
             Some(InvoiceState::Open) => {
                 if ln_invoice.r_preimage.is_empty() {
-                    handle_open_hodl_invoice(
-                        ln_invoice.r_hash,
-                        router.clone(),
-                        invoice_client.clone(),
-                        &config,
-                        db_pool.clone(),
-                    )
-                    .await
+                    let invoice_client = invoice_client.clone();
+                    let router = router.clone();
+                    let config = config.clone();
+                    let db_pool = db_pool.clone();
+                    tokio::spawn(async move {
+                        handle_open_hodl_invoice(
+                            ln_invoice.r_hash,
+                            router,
+                            invoice_client,
+                            &config,
+                            db_pool,
+                        )
+                        .await
+                    });
                 }
             }
             Some(InvoiceState::Accepted) => {
-                handle_accepted_invoice(
-                    ln_invoice,
-                    router.clone(),
-                    invoice_client.clone(),
-                    &config,
-                    db_pool.clone(),
-                )
-                .await
+                let invoice_client = invoice_client.clone();
+                let router = router.clone();
+                let config = config.clone();
+                let db_pool = db_pool.clone();
+                tokio::spawn(async move {
+                    handle_accepted_invoice(ln_invoice, router, invoice_client, &config, db_pool)
+                        .await
+                });
             }
             None | Some(InvoiceState::Canceled) | Some(InvoiceState::Settled) => {}
         }
