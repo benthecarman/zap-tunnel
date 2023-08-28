@@ -1,6 +1,7 @@
 use clap::Parser;
+use serde::{Deserialize, Serialize};
 
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Debug, Clone, Deserialize, Serialize)]
 #[command(version, author, about)]
 /// A tool to use zap-tunnel with lnd
 pub struct Config {
@@ -29,6 +30,42 @@ pub struct Config {
     #[clap(long)]
     /// Path to admin.macaroon file for lnd
     pub macaroon_file: Option<String>,
+}
+
+impl Config {
+    /// Combine two configs into one
+    /// This is used to combine the cmd line args with the config file
+    /// The cmd line args take precedence, in this function
+    /// other is the config file
+    pub fn combine(mut self, other: Self) -> Self {
+        // todo this doesn't properly handle defaults correctly
+        if self.db_path.is_empty() {
+            self.db_path = other.db_path;
+        }
+        if self.invoice_memo.is_empty() {
+            self.invoice_memo = other.invoice_memo;
+        }
+        if self.lnd_host.is_empty() {
+            self.lnd_host = other.lnd_host;
+        }
+        if self.network.is_empty() {
+            self.network = other.network;
+        }
+        self.invoice_cache = if self.invoice_cache == 20 {
+            other.invoice_cache
+        } else {
+            self.invoice_cache
+        };
+        self.lnd_port = if self.lnd_port == 10009 {
+            other.lnd_port
+        } else {
+            self.lnd_port
+        };
+        self.cert_file = self.cert_file.or(other.cert_file);
+        self.macaroon_file = self.macaroon_file.or(other.macaroon_file);
+
+        self
+    }
 }
 
 fn home_directory() -> String {

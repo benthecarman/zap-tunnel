@@ -16,7 +16,8 @@ mod create_user;
 mod lnurlp;
 
 pub(crate) fn handle_anyhow_error(err: anyhow::Error) -> (StatusCode, String) {
-    (StatusCode::BAD_REQUEST, format!("{err}"))
+    println!("Error: {err}");
+    (StatusCode::BAD_REQUEST, err.to_string())
 }
 
 pub async fn index(Extension(state): Extension<State>) -> Html<String> {

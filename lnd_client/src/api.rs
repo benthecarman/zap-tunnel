@@ -3,7 +3,8 @@ use crate::State;
 use anyhow::anyhow;
 use axum::extract::Path;
 use axum::http::StatusCode;
-use axum::{Extension, Json};
+use axum::response::{IntoResponse, Redirect, Response};
+use axum::{Extension, Form, Json};
 use lightning_invoice::Bolt11Invoice;
 use std::str::FromStr;
 use std::time::SystemTime;
@@ -11,6 +12,7 @@ use std::{thread, time};
 use tonic_openssl_lnd::lnrpc;
 use zap_tunnel_client::blocking::*;
 use zap_tunnel_client::Builder;
+use zap_tunnel_client::Error::HttpResponse;
 
 pub(crate) async fn run_loop(state: State) -> anyhow::Result<()> {
     loop {
@@ -83,10 +85,28 @@ async fn setup_user_impl(
     match current {
         // handle new registration
         None => {
-            let url = format!("https://{}/", payload.proxy);
+            let url = if payload.proxy.contains("localhost:") || payload.proxy.contains("127.0.0.1")
+            {
+                format!("http://{}/", payload.proxy)
+            } else {
+                format!("https://{}/", payload.proxy)
+            };
             let client = BlockingClient::from_builder(Builder::new(&url))?;
             let key = state.get_secret_key(&url)?;
-            let resp = client.create_user(&state.context, &payload.username, &key)?;
+            let resp = match client.create_user(&state.context, &payload.username, &key) {
+                Ok(resp) => resp,
+                Err(HttpResponse(_, str)) => {
+                    println!("Failed to create user: {}", str.clone().unwrap_or_default());
+                    return Err(anyhow!(
+                        "Failed to create user: {}",
+                        str.unwrap_or_default()
+                    ));
+                }
+                Err(e) => {
+                    println!("Failed to create user: {}", e);
+                    return Err(anyhow!("Failed to create user"));
+                }
+            };
             if resp.username == payload.username {
                 db.insert(payload.proxy, payload.username.as_bytes())?;
                 Ok(())
@@ -110,8 +130,8 @@ async fn setup_user_impl(
 
 pub async fn setup_user(
     Extension(state): Extension<State>,
-    Json(payload): Json<SetupUser>,
-) -> Result<Json<bool>, (StatusCode, String)> {
+    Form(payload): Form<SetupUser>,
+) -> Result<Response, (StatusCode, String)> {
     let db: sled::Db = sled::open(&state.config.db_path).map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -127,7 +147,7 @@ pub async fn setup_user(
 
     let current = current.map(|v| String::from_utf8(v.to_vec()).unwrap());
     match setup_user_impl(current, &state, payload, db).await {
-        Ok(_) => Ok(Json(true)),
+        Ok(_) => Ok(Redirect::to("/").into_response()),
         Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string())),
     }
 }
@@ -136,8 +156,17 @@ async fn view_status_impl(state: &State, proxy: &str) -> anyhow::Result<Status> 
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
-    let client = BlockingClient::from_builder(Builder::new(proxy))?;
-    let key = state.get_secret_key(proxy)?;
+
+    let base_url = if proxy.starts_with("http://") || proxy.starts_with("https://") {
+        proxy.to_string()
+    } else if proxy.contains("localhost:") || proxy.contains("127.0.0.1") {
+        format!("http://{proxy}")
+    } else {
+        format!("https://{proxy}")
+    };
+
+    let client = BlockingClient::from_builder(Builder::new(&base_url))?;
+    let key = state.get_secret_key(&base_url)?;
     let resp = client.check_user(&state.context, now, &key)?;
     Ok(Status {
         proxy: String::from(proxy),

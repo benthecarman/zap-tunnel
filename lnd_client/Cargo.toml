@@ -9,18 +9,19 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = { version = "0.6.12", optional = true }
+axum = { version = "0.6.20", optional = true }
 anyhow = "1.0"
 bitcoin = { version = "0.29.2", features = ["serde", "std"] }
 clap = { version = "4.0.24", features = ["derive"] }
+config = "0.13.1"
 cfg-if = "1"
 console_error_panic_hook = "0.1"
 console_log = "1"
 futures = "0.3.26"
-leptos = { version = "0.2", default-features = false, features = ["serde"] }
-leptos_meta = { version = "0.2", default-features = false }
-leptos_axum = { version = "0.2", optional = true }
-leptos_router = { version = "0.2", default-features = false }
+leptos = { version = "0.4", default-features = false, features = ["serde", "nightly"] }
+leptos_meta = { version = "0.4", default-features = false, features = ["nightly"] }
+leptos_axum = { version = "0.4", optional = true }
+leptos_router = { version = "0.4", default-features = false, features = ["nightly"]}
 lightning-invoice = { version = "0.24.0", features = ["std"] }
 log = "0.4"
 home = { version = "0.5.4", optional = true }
@@ -38,7 +39,7 @@ tower = { version = "0.4.13", optional = true }
 tower-http = { version = "0.4", features = ["fs"], optional = true }
 tonic_openssl_lnd = { version = "0.2.0", optional = true }
 url = { version = "2.3.1", features = ["serde"] }
-wasm-bindgen = "0.2"
+wasm-bindgen = "0.2.87"
 zap-tunnel-client = { path = "../client", default-features = false, features = ["blocking"], optional = true }
 
 [features]
@@ -59,7 +60,7 @@ site-root = "target/site"
 # Defaults to pkg
 site-pkg-dir = "pkg"
 # [Optional] The source CSS file. If it ends with .sass or .scss then it will be compiled by dart-sass into CSS. The CSS is optimized by Lightning CSS before being written to <site-root>/<site-pkg>/app.css
-style-file = "style/main.scss"
+style-file = "style/dark.min.css"
 # Assets source dir. All files found here will be copied and synchronized to site-root.
 # The assets-dir cannot have a sub directory with the same name/path as site-pkg-dir.
 #
@@ -68,7 +69,7 @@ assets-dir = "assets"
 # The IP and port (ex: 127.0.0.1:3000) where the server serves the content. Use it in your server setup.
 site-addr = "127.0.0.1:3000"
 # The port to use for automatic reload monitoring
-reload-port = 3001
+reload-port = 2999
 # [Optional] Command to use when running end2end tests. It will run in the end2end dir.
 #   [Windows] for non-WSL use "npx.cmd playwright test"
 #   This binary name can be checked in Powershell with Get-Command npx

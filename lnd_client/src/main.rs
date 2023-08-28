@@ -1,10 +1,11 @@
-use crate::config::{default_cert_file, default_macaroon_file, Config};
+use ::config::FileFormat;
 use bitcoin::hashes::{sha256, Hash, HashEngine, Hmac, HmacEngine};
 use bitcoin::secp256k1::{All, Secp256k1, SecretKey};
 use clap::Parser;
-use std::sync::Arc;
 use tonic_openssl_lnd::lnrpc::SignMessageRequest;
 use tonic_openssl_lnd::LndLightningClient;
+
+use crate::config::{default_cert_file, default_macaroon_file, Config};
 
 mod api;
 mod app;
@@ -59,9 +60,9 @@ async fn main() {
         .route("/all", get(api::get_all))
         .route("/setup-user", post(api::setup_user))
         .route("/status/:proxy", get(api::view_status))
-        .leptos_routes(leptos_options.clone(), routes, |cx| view! { cx, <App/> })
+        .leptos_routes(&leptos_options, routes, |cx| view! { cx, <App/> })
         .fallback(file_and_error_handler)
-        .layer(Extension(Arc::new(leptos_options)))
+        .with_state(leptos_options)
         .layer(Extension(state.clone()));
 
     // spawn a task to run the run loop
@@ -83,7 +84,15 @@ const LUD_13_STRING: &str = "DO NOT EVER SIGN THIS TEXT WITH YOUR PRIVATE KEYS! 
 
 #[cfg(feature = "ssr")]
 async fn init() -> anyhow::Result<State> {
-    let config: Config = Config::parse();
+    let _cmd: Config = Config::parse();
+
+    let from_file: Config = ::config::Config::builder()
+        .add_source(::config::File::with_name("config.toml").format(FileFormat::Toml))
+        .build()?
+        .try_deserialize()?;
+
+    // let config = cmd.combine(from_file);
+    let config = from_file;
     let config_clone: Config = config.clone();
 
     if sled::open(&config.db_path).is_err() {
