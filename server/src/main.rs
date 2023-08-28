@@ -76,8 +76,33 @@ async fn main() -> anyhow::Result<()> {
         .run_pending_migrations(MIGRATIONS)
         .expect("migrations could not run");
 
-    if Network::from_str(&lnd_info.chains.first().unwrap().network)? != config.network {
-        panic!("Network mismatch between lnd and config");
+    let lnd_network_str = &lnd_info.chains.first().unwrap().network;
+    match lnd_network_str.to_lowercase().as_str() {
+        "mainnet" | "bitcoin" => {
+            if config.network != Network::Bitcoin {
+                panic!("Network mismatch between lnd and config");
+            }
+        }
+        "testnet" | "testnet3" => {
+            if config.network != Network::Testnet {
+                panic!("Network mismatch between lnd and config");
+            }
+        }
+        "regtest" => {
+            if config.network != Network::Regtest {
+                panic!("Network mismatch between lnd and config");
+            }
+        }
+        "signet" => {
+            if config.network != Network::Signet {
+                panic!("Network mismatch between lnd and config");
+            }
+        }
+        str => {
+            if config.network != Network::from_str(str)? {
+                panic!("Network mismatch between lnd and config");
+            }
+        }
     }
 
     let state = State {
