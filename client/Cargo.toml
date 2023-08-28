@@ -1,7 +1,7 @@
 [package]
 name = "zap-tunnel-client"
 version = "0.1.0"
-edition = "2021"
+edition = "2018"
 authors = ["Ben Carman <benthecarman@live.com>"]
 license = "MIT"
 homepage = "https://github.com/benthecarman/zap-tunnel/"
@@ -11,8 +11,6 @@ documentation = "https://docs.rs/zap-tunnel/"
 description = "A way to do lnurl-pay with a lightning proxy"
 keywords = ["lightning", "bitcoin", "lnurl"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
 name = "zap_tunnel_client"
 path = "src/lib.rs"
@@ -20,7 +18,6 @@ path = "src/lib.rs"
 [dependencies]
 anyhow = "1.0"
 bitcoin = { version = "0.29.2", default-features = false, features = ["serde"] }
-bitcoin_hashes = { version = "0.12.0", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 ureq = { version = "2.5.0", features = ["json"], optional = true }
