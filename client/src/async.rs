@@ -10,7 +10,7 @@ use crate::{Builder, Error};
 
 #[derive(Debug)]
 pub struct AsyncClient {
-    url: String,
+    pub url: String,
     client: Client,
 }
 

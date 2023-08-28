@@ -2,6 +2,10 @@ use ::config::FileFormat;
 use bitcoin::hashes::{sha256, Hash, HashEngine, Hmac, HmacEngine};
 use bitcoin::secp256k1::{All, Secp256k1, SecretKey};
 use clap::Parser;
+#[cfg(feature = "ssr")]
+use std::sync::{Arc, Mutex};
+#[cfg(feature = "ssr")]
+use tokio::sync::watch::Sender;
 use tonic_openssl_lnd::lnrpc::SignMessageRequest;
 use tonic_openssl_lnd::LndLightningClient;
 
@@ -17,6 +21,7 @@ mod models;
 #[cfg(feature = "ssr")]
 #[derive(Clone)]
 pub struct State {
+    pub notifier: Arc<Mutex<Sender<()>>>,
     pub context: Secp256k1<All>,
     pub config: Config,
     pub lnd: LndLightningClient,
@@ -43,6 +48,8 @@ async fn main() {
     use axum::{Extension, Router};
     use leptos::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
+    use std::sync::{Arc, Mutex};
+    use tokio::sync::watch;
 
     register_server_functions();
 
@@ -52,7 +59,10 @@ async fn main() {
     let addr = leptos_options.site_addr;
     let routes = generate_route_list(|cx| view! { cx, <App/> }).await;
 
-    let state = init().await.expect("failed to init state");
+    let (tx, rx) = watch::channel(());
+    let tx_shared = Arc::new(Mutex::new(tx));
+
+    let state = init(tx_shared).await.expect("failed to init state");
 
     // build our application with a route
     let app = Router::new()
@@ -67,7 +77,9 @@ async fn main() {
 
     // spawn a task to run the run loop
     let handle = tokio::spawn(async move {
-        api::run_loop(state).await.expect("failed to run run_loop");
+        api::run_loop(state, rx)
+            .await
+            .expect("failed to run run_loop");
     });
 
     // run our app with hyper
@@ -83,7 +95,7 @@ async fn main() {
 const LUD_13_STRING: &str = "DO NOT EVER SIGN THIS TEXT WITH YOUR PRIVATE KEYS! IT IS ONLY USED FOR DERIVATION OF LNURL-AUTH HASHING-KEY, DISCLOSING ITS SIGNATURE WILL COMPROMISE YOUR LNURL-AUTH IDENTITY AND MAY LEAD TO LOSS OF FUNDS!";
 
 #[cfg(feature = "ssr")]
-async fn init() -> anyhow::Result<State> {
+async fn init(notifier: Arc<Mutex<Sender<()>>>) -> anyhow::Result<State> {
     let _cmd: Config = Config::parse();
 
     let from_file: Config = ::config::Config::builder()
@@ -128,6 +140,7 @@ async fn init() -> anyhow::Result<State> {
     let context = Secp256k1::new();
 
     Ok(State {
+        notifier,
         context,
         config: config_clone,
         lnd: lnd_client.lightning().clone(),

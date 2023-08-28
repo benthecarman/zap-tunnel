@@ -7,12 +7,11 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Extension, Form, Json};
 use lightning_invoice::Bolt11Invoice;
 use std::str::FromStr;
-use std::time::SystemTime;
-use std::{thread, time};
+use std::time::{Duration, SystemTime};
+use tokio::sync::watch::Receiver;
 use tonic_openssl_lnd::lnrpc;
-use zap_tunnel_client::blocking::*;
-use zap_tunnel_client::Builder;
 use zap_tunnel_client::Error::HttpResponse;
+use zap_tunnel_client::{AsyncClient, Builder};
 
 fn create_url(proxy: &str) -> String {
     if proxy.starts_with("http://") || proxy.starts_with("https://") {
@@ -24,7 +23,7 @@ fn create_url(proxy: &str) -> String {
     }
 }
 
-pub(crate) async fn run_loop(state: State) -> anyhow::Result<()> {
+pub(crate) async fn run_loop(state: State, mut rx: Receiver<()>) -> anyhow::Result<()> {
     loop {
         let keys: Vec<String> = {
             let db: sled::Db = sled::open(&state.config.db_path)?;
@@ -37,7 +36,7 @@ pub(crate) async fn run_loop(state: State) -> anyhow::Result<()> {
         let mut futures = Vec::new();
         for key in keys {
             let url = create_url(&key);
-            let client = BlockingClient::from_builder(Builder::new(&url))?;
+            let client = AsyncClient::from_builder(Builder::new(&url))?;
             let fut = upload_invoices(&state, client);
             futures.push(fut);
         }
@@ -47,11 +46,14 @@ pub(crate) async fn run_loop(state: State) -> anyhow::Result<()> {
                 eprintln!("Failed to upload invoices: {e}");
             }
         }
-        thread::sleep(time::Duration::from_secs(60));
+        tokio::select! {
+            _ = rx.changed() => {}
+            _ = tokio::time::sleep(Duration::from_secs(60)) => {}
+        }
     }
 }
 
-async fn upload_invoices(state: &State, client: BlockingClient) -> anyhow::Result<usize> {
+async fn upload_invoices(state: &State, client: AsyncClient) -> anyhow::Result<usize> {
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
@@ -59,10 +61,9 @@ async fn upload_invoices(state: &State, client: BlockingClient) -> anyhow::Resul
     let key = state.get_secret_key(&client.url)?;
 
     let invoices_remaining = client
-        .check_user(&state.context, now, &key)?
+        .check_user(&state.context, now, &key)
+        .await?
         .invoices_remaining;
-
-    println!("Invoices remaining: {}", invoices_remaining);
 
     let need_invoices = state
         .config
@@ -73,7 +74,7 @@ async fn upload_invoices(state: &State, client: BlockingClient) -> anyhow::Resul
     if need_invoices > 0 {
         println!("Adding {} invoices", need_invoices);
         let mut invoices: Vec<Bolt11Invoice> = vec![];
-        for i in 0..need_invoices {
+        for _ in 0..need_invoices {
             let inv = lnrpc::Invoice {
                 memo: state.config.invoice_memo.clone(),
                 expiry: 31536000, // ~1 year
@@ -91,7 +92,8 @@ async fn upload_invoices(state: &State, client: BlockingClient) -> anyhow::Resul
             invoices.push(ln_invoice);
         }
 
-        let num = client.add_invoices(&state.context, &key, invoices.as_slice())?;
+        let fut = client.add_invoices(&state.context, &key, invoices.as_slice());
+        let num = tokio::time::timeout(Duration::from_secs(30), fut).await??;
         println!("Added {} invoices", num);
 
         return Ok(num);
@@ -110,9 +112,12 @@ async fn setup_user_impl(
         // handle new registration
         None => {
             let url = create_url(&payload.proxy);
-            let client = BlockingClient::from_builder(Builder::new(&url))?;
+            let client = AsyncClient::from_builder(Builder::new(&url))?;
             let key = state.get_secret_key(&url)?;
-            let resp = match client.create_user(&state.context, &payload.username, &key) {
+            let resp = match client
+                .create_user(&state.context, &payload.username, &key)
+                .await
+            {
                 Ok(resp) => resp,
                 Err(HttpResponse(_, str)) => {
                     println!("Failed to create user: {}", str.clone().unwrap_or_default());
@@ -128,6 +133,10 @@ async fn setup_user_impl(
             };
             if resp.username == payload.username {
                 db.insert(payload.proxy, payload.username.as_bytes())?;
+
+                // trigger upload invoices
+                let tx = state.notifier.lock().unwrap();
+                tx.send_if_modified(|_| true);
                 Ok(())
             } else {
                 Err(anyhow!("Failed to register to proxy {}", payload.proxy))
@@ -175,11 +184,11 @@ async fn view_status_impl(state: &State, proxy: &str) -> anyhow::Result<Status> 
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
-    let base_url = create_url(&proxy);
+    let base_url = create_url(proxy);
 
-    let client = BlockingClient::from_builder(Builder::new(&base_url))?;
+    let client = AsyncClient::from_builder(Builder::new(&base_url))?;
     let key = state.get_secret_key(&base_url)?;
-    let resp = client.check_user(&state.context, now, &key)?;
+    let resp = client.check_user(&state.context, now, &key).await?;
     Ok(Status {
         proxy: String::from(proxy),
         username: resp.username,
