@@ -60,7 +60,7 @@ pub async fn start_invoice_subscription(
     config: Config,
     db_pool: Pool<ConnectionManager<SqliteConnection>>,
 ) {
-    println!("Starting invoice subscription");
+    println!("Starting invoice subscription, network: {}", config.network);
 
     let sub = lnrpc::InvoiceSubscription::default();
     let mut invoice_stream = lnd

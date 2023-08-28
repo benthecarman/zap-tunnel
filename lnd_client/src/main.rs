@@ -66,9 +66,9 @@ async fn main() {
         .layer(Extension(state.clone()));
 
     // spawn a task to run the run loop
-    // let handle = tokio::spawn(async move {
-    //     api::run_loop(state).await.expect("failed to run run_loop");
-    // });
+    let handle = tokio::spawn(async move {
+        api::run_loop(state).await.expect("failed to run run_loop");
+    });
 
     // run our app with hyper
     log!("listening on http://{}", &addr);
@@ -77,7 +77,7 @@ async fn main() {
         .await
         .unwrap();
 
-    // handle.await.expect("failed to join run_loop");
+    handle.await.expect("failed to join run_loop");
 }
 
 const LUD_13_STRING: &str = "DO NOT EVER SIGN THIS TEXT WITH YOUR PRIVATE KEYS! IT IS ONLY USED FOR DERIVATION OF LNURL-AUTH HASHING-KEY, DISCLOSING ITS SIGNATURE WILL COMPROMISE YOUR LNURL-AUTH IDENTITY AND MAY LEAD TO LOSS OF FUNDS!";

@@ -51,11 +51,7 @@ impl Config {
         if self.network.is_empty() {
             self.network = other.network;
         }
-        self.invoice_cache = if self.invoice_cache == 20 {
-            other.invoice_cache
-        } else {
-            self.invoice_cache
-        };
+        self.invoice_cache = self.invoice_cache.max(other.invoice_cache);
         self.lnd_port = if self.lnd_port == 10009 {
             other.lnd_port
         } else {

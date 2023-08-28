@@ -1,9 +1,11 @@
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::time::Duration;
 
 use axum::http::{StatusCode, Uri};
 use axum::routing::{get, post};
 use axum::{Extension, Router};
+use bitcoin::Network;
 use clap::Parser;
 use diesel::connection::SimpleConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
@@ -73,6 +75,10 @@ async fn main() -> anyhow::Result<()> {
     connection
         .run_pending_migrations(MIGRATIONS)
         .expect("migrations could not run");
+
+    if Network::from_str(&lnd_info.chains.first().unwrap().network)? != config.network {
+        panic!("Network mismatch between lnd and config");
+    }
 
     let state = State {
         connection_string: lnd_info

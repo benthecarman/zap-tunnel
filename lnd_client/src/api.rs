@@ -14,6 +14,16 @@ use zap_tunnel_client::blocking::*;
 use zap_tunnel_client::Builder;
 use zap_tunnel_client::Error::HttpResponse;
 
+fn create_url(proxy: &str) -> String {
+    if proxy.starts_with("http://") || proxy.starts_with("https://") {
+        proxy.to_string()
+    } else if proxy.contains("localhost:") || proxy.contains("127.0.0.1") {
+        format!("http://{proxy}")
+    } else {
+        format!("https://{proxy}")
+    }
+}
+
 pub(crate) async fn run_loop(state: State) -> anyhow::Result<()> {
     loop {
         let keys: Vec<String> = {
@@ -25,13 +35,18 @@ pub(crate) async fn run_loop(state: State) -> anyhow::Result<()> {
                 .collect()
         };
         let mut futures = Vec::new();
-        for key in keys.iter() {
-            let client = BlockingClient::from_builder(Builder::new(key))?;
+        for key in keys {
+            let url = create_url(&key);
+            let client = BlockingClient::from_builder(Builder::new(&url))?;
             let fut = upload_invoices(&state, client);
             futures.push(fut);
         }
-        let combined_futures = futures::future::join_all(futures);
-        let _ = combined_futures.await;
+        let combined_futures = futures::future::join_all(futures).await;
+        for result in combined_futures {
+            if let Err(e) = result {
+                eprintln!("Failed to upload invoices: {e}");
+            }
+        }
         thread::sleep(time::Duration::from_secs(60));
     }
 }
@@ -49,21 +64,30 @@ async fn upload_invoices(state: &State, client: BlockingClient) -> anyhow::Resul
 
     println!("Invoices remaining: {}", invoices_remaining);
 
-    // use i64 to handle negatives safely
-    let need_invoices = state.config.invoice_cache as i64 - invoices_remaining as i64;
+    let need_invoices = state
+        .config
+        .invoice_cache
+        .checked_sub(invoices_remaining as usize)
+        .unwrap_or_default();
 
     if need_invoices > 0 {
+        println!("Adding {} invoices", need_invoices);
         let mut invoices: Vec<Bolt11Invoice> = vec![];
-        for _ in 0..need_invoices {
+        for i in 0..need_invoices {
             let inv = lnrpc::Invoice {
                 memo: state.config.invoice_memo.clone(),
                 expiry: 31536000, // ~1 year
                 private: true,
                 ..Default::default()
             };
-            let invoice = state.lnd.clone().add_invoice(inv).await?.into_inner();
+            let invoice = match state.lnd.clone().add_invoice(inv).await {
+                Ok(invoice) => invoice.into_inner(),
+                Err(e) => {
+                    eprintln!("Failed to add invoice: {e}");
+                    continue;
+                }
+            };
             let ln_invoice = Bolt11Invoice::from_str(&invoice.payment_request)?;
-
             invoices.push(ln_invoice);
         }
 
@@ -85,12 +109,7 @@ async fn setup_user_impl(
     match current {
         // handle new registration
         None => {
-            let url = if payload.proxy.contains("localhost:") || payload.proxy.contains("127.0.0.1")
-            {
-                format!("http://{}/", payload.proxy)
-            } else {
-                format!("https://{}/", payload.proxy)
-            };
+            let url = create_url(&payload.proxy);
             let client = BlockingClient::from_builder(Builder::new(&url))?;
             let key = state.get_secret_key(&url)?;
             let resp = match client.create_user(&state.context, &payload.username, &key) {
@@ -156,14 +175,7 @@ async fn view_status_impl(state: &State, proxy: &str) -> anyhow::Result<Status> 
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
-
-    let base_url = if proxy.starts_with("http://") || proxy.starts_with("https://") {
-        proxy.to_string()
-    } else if proxy.contains("localhost:") || proxy.contains("127.0.0.1") {
-        format!("http://{proxy}")
-    } else {
-        format!("https://{proxy}")
-    };
+    let base_url = create_url(&proxy);
 
     let client = BlockingClient::from_builder(Builder::new(&base_url))?;
     let key = state.get_secret_key(&base_url)?;

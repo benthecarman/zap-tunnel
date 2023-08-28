@@ -61,7 +61,7 @@ fn HomePage(cx: Scope) -> impl IntoView {
                             <th>"Username"</th>
                             <th>"Proxy"</th>
                         </tr>
-                        { all.iter().map(|status| view! { cx, <tr><td>{&status.username}</td><td>{&status.proxy}</td><td><button><a href=format!("/view/{}", status.proxy)>View</a></button></td></tr> }).collect_view(cx) }
+                        { all.iter().map(|status| view! { cx, <tr><td>{&status.username}</td><td>{&status.proxy}</td><td><a href=format!("/view/{}", status.proxy)><button>View</button></a></td></tr> }).collect_view(cx) }
                     </table>
                 </div>
             })

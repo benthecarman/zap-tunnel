@@ -5,7 +5,6 @@ use bitcoin::secp256k1::SECP256K1;
 use bitcoin::Network;
 use diesel::{Connection, RunQueryDsl, SqliteConnection};
 use lightning_invoice::Bolt11Invoice;
-use lightning_invoice::Currency;
 
 pub use zap_tunnel_client::AddInvoices;
 
@@ -15,16 +14,10 @@ use crate::models::user::User;
 use crate::routes::handle_anyhow_error;
 use crate::State;
 
+/// Returns true if all invoices are valid
 fn check_invoices(invoices: &[Bolt11Invoice], network: Network) -> bool {
-    let expected_currency = match network {
-        Network::Bitcoin => Currency::Bitcoin,
-        Network::Testnet => Currency::BitcoinTestnet,
-        Network::Signet => Currency::Signet,
-        Network::Regtest => Currency::Regtest,
-    };
-
     invoices.iter().all(|inv| {
-        inv.currency() == expected_currency
+        inv.network() == network
             && inv.amount_milli_satoshis().is_none()
             && !inv.is_expired()
             && inv.min_final_cltv_expiry_delta() < 333
